@@ -13,13 +13,13 @@ reader = "undefined"
 reader_status = "disconnected"
 epc_to_update = "None"
 item_dictionary = {}
-
+epcs_to_update = []
 
 # Define the GUI layout
 layout = [
-    [sg.Text("Device URI:"), sg.InputText( key="connect-reader")],
+    [sg.Text("Device URI:"), sg.InputText("tmr:///dev/ttyUSB0", key="connect-reader")],
     [sg.Text("Set Read Power (0-2700):"), sg.InputText(key="reader-power")],
-    [sg.Text("EPC to Update:"), sg.Combo([],default_value = epc_to_update, key="epc",size=(25,1) )],
+    [sg.Text("EPC to Update:"), sg.Combo(epcs_to_update,default_value = epc_to_update, key="epc",size=(25,1), enable_events=True)],
     [sg.Text("New Item Name:"), sg.InputText(key="item-name")],
     [sg.Button("Connect"), sg.Button("Set Power"), sg.Button("Find Item"), sg.Button("Update Item")],
     [sg.Multiline("", size=(50, 10), key="-EventLog-", disabled=True)]
@@ -62,7 +62,7 @@ while True:
         if(reader_status == "disconnected"):
             window["-EventLog-"].print(f"Please connect to reader first!\n")
             continue
-        reader_power = values["reader-power"]
+        reader_power = int(values["reader-power"])
         try:
             #Set the reader power, protocol, and number of antennas
             reader.set_read_plan([1], "GEN2", read_power=reader_power)
@@ -80,8 +80,9 @@ while True:
             reader.set_read_plan([1], "GEN2", read_power=1000)
             epcs = map(lambda tag: tag.epc, reader.read())
             window["-EventLog-"].print(f"Found Items: {list(epcs)}!\n")
-            if len(epcs > 0):
-                values["epc"] = list(epcs)
+            if len(list(epcs)) > 0:
+                epcs_to_update = list(epcs)
+                values["epc"].update(value=epc_to_update[0], values= epcs_to_update)
         except:
             window["-EventLog-"].print(f"Failed to start reading!\n")
             continue
