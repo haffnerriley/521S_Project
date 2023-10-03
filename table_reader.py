@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 from __future__ import print_function
 import PySimpleGUI as sg
@@ -7,25 +6,29 @@ import PySimpleGUI as sg
 
 import time
 from datetime import datetime
-#import mercury
+import mercury
 
+
+reader = "undefined"
+reader_status = "disconnected"
+epc_to_update = "None"
+item_dictionary = {}
 
 
 # Define the GUI layout
 layout = [
     [sg.Text("Device URI:"), sg.InputText( key="connect-reader")],
     [sg.Text("Set Read Power (0-2700):"), sg.InputText(key="reader-power")],
-    [sg.Text("EPC to Update:"), sg.InputText(key="epc")],
+    [sg.Text("EPC to Update:"), sg.Combo([],default_value = epc_to_update, key="epc",size=(25,1) )],
     [sg.Text("New Item Name:"), sg.InputText(key="item-name")],
-    [sg.Button("Connect"), sg.Button("Set Power"), sg.Button("Find Item to Update"), sg.Button("Update Item")],
-    [sg.Multiline("", size=(40, 10), key="-EventLog-", disabled=True)]
+    [sg.Button("Connect"), sg.Button("Set Power"), sg.Button("Find Item"), sg.Button("Update Item")],
+    [sg.Multiline("", size=(50, 10), key="-EventLog-", disabled=True)]
 ]
 
 # Create the window
 window = sg.Window("Smart Kitchen Application", layout, finalize=True)
 
-reader = "undefined"
-reader_status = "disconnected"
+
 # Event loop
 while True:
     event, values = window.read()
@@ -68,27 +71,32 @@ while True:
             continue
         
         window["-EventLog-"].print(f"Reader power set to {reader_power}\n")
-    elif event == "Find Item to Update":
+    elif event == "Find Item":
         if(reader_status == "disconnected"):
             window["-EventLog-"].print(f"Please connect to reader first!\n")
             continue
 
         try:
-             reader_start_val = reader.read()
-             window["-EventLog-"].print(f"Ready to Read! {reader_start_val}\n")
-        except:
-            window["-EventLog-"].print(f"Failed to start reading!\n")
-            continue
-        
-        try:
+            reader.set_read_plan([1], "GEN2", read_power=1000)
             epcs = map(lambda tag: tag.epc, reader.read())
-            window["-EventLog-"].print(f"Failed to start reading!\n")
-            print(list(epcs))
+            window["-EventLog-"].print(f"Found Items: {list(epcs)}!\n")
+            if len(epcs > 0):
+                values["epc"] = list(epcs)
         except:
             window["-EventLog-"].print(f"Failed to start reading!\n")
             continue
     elif event == "Update Item":
-
+        if(reader_status == "disconnected"):
+            window["-EventLog-"].print(f"Please connect to reader first!\n")
+            continue
+        if(values["epc"] == "None"):
+            window["-EventLog-"].print(f"Please click Find Item button and pick an EPC to update! \n")
+            continue
+        if(values["item-name"] == ""):
+            window["-EventLog-"].print(f"Please input a new Item name!\n")
+            continue
+        item_dictionary.update(values["epc"], values["item-name"])
+        window["-EventLog-"].print(f"Item Updated! Items in inventory: {item_dictionary}\n")
 
 # Close the window
 window.close()
