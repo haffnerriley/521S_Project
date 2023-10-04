@@ -11,9 +11,12 @@ import mercury
 
 reader = "undefined"
 reader_status = "disconnected"
+reader_power = 1000
 epc_to_update = "None"
 item_dictionary = {}
 epcs_to_update = []
+prev_read = []
+reading_status = False
 
 # Define the GUI layout
 layout = [
@@ -21,7 +24,7 @@ layout = [
     [sg.Text("Set Read Power (0-2700):"), sg.InputText(key="reader-power")],
     [sg.Text("EPC to Update:"), sg.Combo(epcs_to_update, default_value=epc_to_update, key="epc",size=(25,1), enable_events=True)],
     [sg.Text("New Item Name:"), sg.InputText(key="item-name")],
-    [sg.Button("Connect"), sg.Button("Set Power"), sg.Button("Find Item"), sg.Button("Update Item")],
+    [sg.Button("Connect"), sg.Button("Set Power"), sg.Button("Find Item"), sg.Button("Update Item"), sg.Button("Start Reading", key="read-btn")],
     [sg.Multiline("", size=(50, 10), key="-EventLog-", disabled=True)]
 ]
 
@@ -31,7 +34,7 @@ window = sg.Window("Smart Kitchen Application", layout, finalize=True)
 
 # Event loop
 while True:
-    event, values = window.read()
+    event, values = window.read(timeout=500)
     
 
     
@@ -54,7 +57,7 @@ while True:
         
         #Set the reader region and default power
         reader.set_region("NA2")
-        reader.set_read_plan([1], "GEN2", read_power=1900)
+        reader.set_read_plan([1], "GEN2", read_power=reader_power)
         reader_status = "connected"
     elif event == "Set Power":
         #Grabbing power value from input box
@@ -77,7 +80,7 @@ while True:
             continue
 
         try:
-            reader.set_read_plan([1], "GEN2", read_power=1000)
+            reader.set_read_plan([1], "GEN2", read_power=reader_power)
             epcs = map(lambda tag: tag.epc, reader.read())
             epc_list = list(epcs)
             window["-EventLog-"].print(f"Found Items: {epc_list}!\n")
@@ -104,6 +107,43 @@ while True:
             continue
         item_dictionary.update({values["epc"].decode("utf-8") : values["item-name"]})
         window["-EventLog-"].print(f"Item Updated! Items in inventory: {item_dictionary}\n")
+    elif event == "read-btn" and reading_status == False:
+        window[event].update("Stop Reading")
+        reading_status = True
+    elif event == "read-btn" and reading_status:
+        window[event].update("Start Reading")
+        reading_status = False
+
+    
+
+    if reading_status:
+        #make a read
+        current_tags = list(map(lambda t: t.epc, reader.read()))
+    
+        #combine
+        all_tags = current_tags + prev_read
+        #remove duplicates
+        all_tags = list(set(all_tags))
+
+        
+        for tag in all_tags:
+            if tag in prev_read and tag in current_tags:
+                window["-EventLog-"].print(str(tag) + " stayed in field\n")
+                #send to server here  
+            elif tag in prev_read and tag not in current_tags:
+                window["-EventLog-"].print(str(tag) + " has left field\n")
+                #send to server here             
+            elif tag in current_tags and tag not in prev_read:
+                window["-EventLog-"].print(str(tag) + " has entered field\n")
+                #send to server here
+            
+                
+        
+        prev_read = current_tags[:]
+
+        #time.sleep(1)
+
+    
 
 # Close the window
 window.close()
