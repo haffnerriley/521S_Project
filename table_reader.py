@@ -19,7 +19,7 @@ epcs_to_update = []
 layout = [
     [sg.Text("Device URI:"), sg.InputText("tmr:///dev/ttyUSB0", key="connect-reader")],
     [sg.Text("Set Read Power (0-2700):"), sg.InputText(key="reader-power")],
-    [sg.Text("EPC to Update:"), sg.Combo(epcs_to_update,default_value = epc_to_update, key="epc",size=(25,1), enable_events=True)],
+    [sg.Text("EPC to Update:"), sg.Combo(epcs_to_update, default_value=epc_to_update, key="epc",size=(25,1), enable_events=True)],
     [sg.Text("New Item Name:"), sg.InputText(key="item-name")],
     [sg.Button("Connect"), sg.Button("Set Power"), sg.Button("Find Item"), sg.Button("Update Item")],
     [sg.Multiline("", size=(50, 10), key="-EventLog-", disabled=True)]
@@ -79,10 +79,16 @@ while True:
         try:
             reader.set_read_plan([1], "GEN2", read_power=1000)
             epcs = map(lambda tag: tag.epc, reader.read())
-            window["-EventLog-"].print(f"Found Items: {list(epcs)}!\n")
-            if len(list(epcs)) > 0:
-                epcs_to_update = list(epcs)
-                values["epc"].update(value=epc_to_update[0], values= epcs_to_update)
+            epc_list = list(epcs)
+            window["-EventLog-"].print(f"Found Items: {epc_list}!\n")
+            if len(epc_list) > 0:
+                epc_to_update = epc_list[0].decode("utf-8")
+                window["epc"].update(value=str(epc_to_update), values=epc_list)
+                selected_item = item_dictionary.get(epc_to_update)
+                
+                if(selected_item != None):
+                    epc_to_update = selected_item
+                window["-EventLog-"].print(f"Selecting item: {epc_to_update}!\n")
         except:
             window["-EventLog-"].print(f"Failed to start reading!\n")
             continue
@@ -96,7 +102,7 @@ while True:
         if(values["item-name"] == ""):
             window["-EventLog-"].print(f"Please input a new Item name!\n")
             continue
-        item_dictionary.update(values["epc"], values["item-name"])
+        item_dictionary.update({values["epc"].decode("utf-8") : values["item-name"]})
         window["-EventLog-"].print(f"Item Updated! Items in inventory: {item_dictionary}\n")
 
 # Close the window
