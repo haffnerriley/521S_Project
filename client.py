@@ -15,7 +15,7 @@ item_dictionary = {}
 epcs_to_update = []
 prev_read = []
 reading_status = False
-server_socket = None
+client_socket = None
 server_status = False
 # Define the GUI layout
 layout = [
@@ -69,11 +69,12 @@ while True:
         try:
             # Connect to the server (change the server address and port as needed)
             server_address = (values["server-addr"], values["server-port"])
-            server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            server_socket.connect(server_address)
+            client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            client_socket.connect(('toadMonster', 12345))
             server_status = True
             window[event].update("Disconnect from Server")
             window["-EventLog-"].print(f"Connected to the server:\n")
+            client_socket.send(b'test')
         except Exception as e:
             window["-EventLog-"].print(f"Failed to connect to the server: {str(e)}\n")
     elif event == "server-btn" and server_status:

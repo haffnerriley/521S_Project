@@ -10,13 +10,14 @@ import mercury
 import socket
 import threading
 
+host = socket.gethostname()
 # Configure the server address and port
-server_address = ('localhost', 12345)
+server_address = (host, 12345)
 
 # Create a socket and bind it to the server address
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 server_socket.bind(server_address)
-server_socket.listen(1)
+#server_socket.listen(1)
 server_socket.settimeout(0.5)
 reader = "undefined"
 reader_status = "disconnected"
@@ -48,7 +49,8 @@ def handle_client(client_socket):
     try:
         while True:
             # Receive data from the client (RFID reader)
-            data = client_socket.recv(1024)
+            data = client_socket.recv(4)
+            print("here")
             if not data:
                 break
             # Process the received data (RFID tag information)
