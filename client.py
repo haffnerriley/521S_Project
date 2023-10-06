@@ -25,7 +25,7 @@ layout = [
     [sg.Text("Set Read Power (0-2700):"), sg.InputText(key="reader-power")],
     [sg.Text("EPC to Update:"), sg.Combo(epcs_to_update, default_value=epc_to_update, key="epc",size=(25,1), enable_events=True)],
     [sg.Text("New Item Name:"), sg.InputText(key="item-name")],
-    [[sg.Button("Connect to Server"), sg.Button("Connect to Reader"), sg.Button("Set Power"), sg.Button("Find Item"), sg.Button("Update Item"), sg.Button("Start Reading", key="read-btn")],
+    [[sg.Button("Connect to Server"), sg.Button("Connect to Reader"), sg.Button("Set Power"), sg.Button("Find Item"), sg.Button("Update Item"), sg.Button("Start Reading", key="read-btn")]],
     [sg.Multiline("", size=(50, 10), key="-EventLog-", disabled=True)]
 ]
 
@@ -39,6 +39,7 @@ while True:
     
 
     
+
     if event == sg.WINDOW_CLOSED:
         break
     elif event == "Connect to Reader":
@@ -48,13 +49,15 @@ while True:
             reader = mercury.Reader(reader_port, baudrate=115200)
         except:
             reader_status = "disconnected"
-            window["-EventLog-"].print(f"Falied to connect to Reader! Please check device URI!\n")
+            console_history = window["-EventLog-"].get()
+            window["-EventLog-"].update(console_history + 'Falied to connect to Reader! Please check device URI!\n')
             continue
         
-        
+        console_history = window["-EventLog-"].get()
         #Printing reader model and region to console
-        window["-EventLog-"].print(f"Reader Connected: Model {reader.get_model()}\n")
-        window["-EventLog-"].print(f"Supported Regions: {reader.get_supported_regions()}\n")
+        window["-EventLog-"].update(console_history + 'Reader Connected: Model' + reader.get_model() + '\n')
+        console_history = window["-EventLog-"].get()
+        window["-EventLog-"].update(console_history + 'Supported Regions:'+ reader.get_supported_regions() + '\n')
         
         #Set the reader region and default power
         reader.set_region("NA2")
@@ -64,27 +67,31 @@ while True:
         #Grabbing power value from input box
         #Could add some logic to make sure input values are correct but will save for later if have time...
         if(reader_status == "disconnected"):
-            window["-EventLog-"].print(f"Please connect to reader first!\n")
+            console_history = window["-EventLog-"].get()
+            window["-EventLog-"].update(console_history + "Please connect to reader first!\n")
             continue
         reader_power = int(values["reader-power"])
         try:
             #Set the reader power, protocol, and number of antennas
             reader.set_read_plan([1], "GEN2", read_power=reader_power)
         except:
-            window["-EventLog-"].print(f"Failed to set reader power!\n")
+            console_history = window["-EventLog-"].get()
+            window["-EventLog-"].update(console_history + "Failed to set reader power!\n")
             continue
-        
-        window["-EventLog-"].print(f"Reader power set to {reader_power}\n")
+        console_history = window["-EventLog-"].get()
+        window["-EventLog-"].update(console_history + "Reader power set to" + reader_power + "\n")
     elif event == "Find Item":
         if(reader_status == "disconnected"):
-            window["-EventLog-"].print(f"Please connect to reader first!\n")
+            console_history = window["-EventLog-"].get()
+            window["-EventLog-"].update(console_history + "Please connect to reader first!\n")
             continue
 
         try:
             reader.set_read_plan([1], "GEN2", read_power=reader_power)
             epcs = map(lambda tag: tag.epc, reader.read())
             epc_list = list(epcs)
-            window["-EventLog-"].print(f"Found Items: {epc_list}!\n")
+            console_history = window["-EventLog-"].get()
+            window["-EventLog-"].print(console_history + "Found Items:" + epc_list +"\n")
             if len(epc_list) > 0:
                 epc_to_update = epc_list[0].decode("utf-8")
                 window["epc"].update(value=str(epc_to_update), values=epc_list)
@@ -92,22 +99,28 @@ while True:
                 
                 if(selected_item != None):
                     epc_to_update = selected_item
-                window["-EventLog-"].print(f"Selecting item: {epc_to_update}!\n")
+                console_history = window["-EventLog-"].get()
+                window["-EventLog-"].update(console_history + "Selecting item: " + epc_to_update + "\n")
         except:
-            window["-EventLog-"].print(f"Failed to start reading!\n")
+            console_history = window["-EventLog-"].get()
+            window["-EventLog-"].update(console_history + "Failed to start reading!\n")
             continue
     elif event == "Update Item":
         if(reader_status == "disconnected"):
-            window["-EventLog-"].print(f"Please connect to reader first!\n")
+            console_history = window["-EventLog-"].get()
+            window["-EventLog-"].update(console_history + "Please connect to reader first!\n")
             continue
         if(values["epc"] == "None"):
-            window["-EventLog-"].print(f"Please click Find Item button and pick an EPC to update! \n")
+            console_history = window["-EventLog-"].get()
+            window["-EventLog-"].print(console_history + "Please click Find Item button and pick an EPC to update! \n")
             continue
         if(values["item-name"] == ""):
-            window["-EventLog-"].print(f"Please input a new Item name!\n")
+            console_history = window["-EventLog-"].get()
+            window["-EventLog-"].print(console_history + "Please input a new Item name!\n")
             continue
         item_dictionary.update({values["epc"].decode("utf-8") : values["item-name"]})
-        window["-EventLog-"].print(f"Item Updated! Items in inventory: {item_dictionary}\n")
+        console_history = window["-EventLog-"].get()
+        window["-EventLog-"].print(console_history + "Item Updated! Items in inventory: " + item_dictionary + "\n")
     elif event == "read-btn" and reading_status == False:
         window[event].update("Stop Reading")
         reading_status = True
