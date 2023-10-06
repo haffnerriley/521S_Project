@@ -29,7 +29,7 @@ layout = [
 ]
 
 # Create the window
-window = sg.Window("Smart Kitchen Client Application", layout, finalize=True)
+window = sg.Window("Smart Kitchen Client Application", layout,resizable=True, finalize=True)
 
 
     

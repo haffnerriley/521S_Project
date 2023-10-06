@@ -40,16 +40,16 @@ layout = [
 ]
 
 # Create the window
-window = sg.Window("Smart Kitchen Server Application", layout, finalize=True)
+window = sg.Window("Smart Kitchen Server Application", layout, resizable=True, finalize=True)
 
 print(f"RFID Server listening on {server_address}")
 
 # Function to handle client connections
-def handle_client(client_socket):
+def handle_client(data, address):
     try:
         while True:
             # Receive data from the client (RFID reader)
-            data = client_socket.recv(4)
+            #data = client_socket.recv(4)
             print("here")
             if not data:
                 break
@@ -57,7 +57,8 @@ def handle_client(client_socket):
             # Implement your processing logic here
             
             # For example, print the received data
-            print(f"Received data from RFID client: {data.decode('utf-8')}")
+            print(f"Received data from RFID client {address}: {data.decode('utf-8')}")
+            #print(f"Received data from RFID client: {data.decode('utf-8')}")
     except Exception as e:
         print(f"Error: {str(e)}")
 
@@ -66,9 +67,10 @@ while True:
     event, values = window.read(timeout=500)
     try:
         print("Waiting for a connection...")
-        client_socket, client_address = server_socket.accept()
+        data, client_address = server_socket.recvfrom(1024)
+        #client_socket, client_address = server_socket.accept()
         print(f"Connected to {client_address}")
-        client_handler = threading.Thread(target=handle_client, args=(client_socket,))
+        client_handler = threading.Thread(target=handle_client, args=(data, client_address))
         client_handler.start()
     except:
         print("Failed to connect")
