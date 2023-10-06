@@ -7,8 +7,17 @@ import PySimpleGUI as sg
 import time
 from datetime import datetime
 import mercury
+import socket
+import threading
 
+# Configure the server address and port
+server_address = ('localhost', 12345)
 
+# Create a socket and bind it to the server address
+server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+server_socket.bind(server_address)
+server_socket.listen(1)
+server_socket.settimeout(0.5)
 reader = "undefined"
 reader_status = "disconnected"
 reader_power = 1000
@@ -32,12 +41,38 @@ layout = [
 # Create the window
 window = sg.Window("Smart Kitchen Server Application", layout, finalize=True)
 
+print(f"RFID Server listening on {server_address}")
+
+# Function to handle client connections
+def handle_client(client_socket):
+    try:
+        while True:
+            # Receive data from the client (RFID reader)
+            data = client_socket.recv(1024)
+            if not data:
+                break
+            # Process the received data (RFID tag information)
+            # Implement your processing logic here
+            
+            # For example, print the received data
+            print(f"Received data from RFID client: {data.decode('utf-8')}")
+    except Exception as e:
+        print(f"Error: {str(e)}")
 
 # Event loop
 while True:
     event, values = window.read(timeout=500)
-    
+    try:
+        print("Waiting for a connection...")
+        client_socket, client_address = server_socket.accept()
+        print(f"Connected to {client_address}")
+        client_handler = threading.Thread(target=handle_client, args=(client_socket,))
+        client_handler.start()
+    except:
+        print("Failed to connect")
 
+    # Start a new thread to handle the client connection
+    
     
     if event == sg.WINDOW_CLOSED:
         break
@@ -45,7 +80,7 @@ while True:
         #Connect to reader using usb 
         reader_ip = values["connect-reader"]
         try:
-            #reader = mercury.Reader(reader_port, baudrate=115200)
+            reader = mercury.Reader(reader_port, baudrate=115200)
         except:
             reader_status = "disconnected"
             window["-EventLog-"].print(f"Falied to connect to Reader! Please check device URI!\n")

@@ -1,9 +1,7 @@
 #!/usr/bin/env python3
 from __future__ import print_function
 import PySimpleGUI as sg
-
-
-
+import socket
 import time
 from datetime import datetime
 import mercury
@@ -17,20 +15,24 @@ item_dictionary = {}
 epcs_to_update = []
 prev_read = []
 reading_status = False
-
+server_socket = None
+server_status = False
 # Define the GUI layout
 layout = [
-    [sg.Text("Server IP Address:"), sg.InputText("", key="connect-reader")],
+    [sg.Text("Server IP Address/Hostname:"), sg.InputText("", key="server-addr"),sg.Text("Server Port: "), sg.InputText("", key="server-port"), ],
     [sg.Text("Device URI:"), sg.InputText("tmr:///dev/ttyUSB0", key="connect-reader")],
     [sg.Text("Set Read Power (0-2700):"), sg.InputText(key="reader-power")],
     [sg.Text("EPC to Update:"), sg.Combo(epcs_to_update, default_value=epc_to_update, key="epc",size=(25,1), enable_events=True)],
     [sg.Text("New Item Name:"), sg.InputText(key="item-name")],
-    [[sg.Button("Connect to Server"), sg.Button("Connect to Reader"), sg.Button("Set Power"), sg.Button("Find Item"), sg.Button("Update Item"), sg.Button("Start Reading", key="read-btn")]],
+    [[sg.Button("Connect to Server", key="server-btn"), sg.Button("Connect to Reader"), sg.Button("Set Power"), sg.Button("Find Item"), sg.Button("Update Item"), sg.Button("Start Reading", key="read-btn")]],
     [sg.Multiline("", size=(50, 10), key="-EventLog-", disabled=True)]
 ]
 
 # Create the window
-window = sg.Window("Smart Kitchen Application", layout, finalize=True)
+window = sg.Window("Smart Kitchen Client Application", layout, finalize=True)
+
+
+    
 
 
 # Event loop
@@ -63,6 +65,25 @@ while True:
         reader.set_region("NA2")
         reader.set_read_plan([1], "GEN2", read_power=reader_power)
         reader_status = "connected"
+    elif event == "server-btn" and server_status == False:
+        try:
+            # Connect to the server (change the server address and port as needed)
+            server_address = (values["server-addr"], values["server-port"])
+            server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            server_socket.connect(server_address)
+            server_status = True
+            window[event].update("Disconnect from Server")
+            window["-EventLog-"].print(f"Connected to the server:\n")
+        except Exception as e:
+            window["-EventLog-"].print(f"Failed to connect to the server: {str(e)}\n")
+    elif event == "server-btn" and server_status:
+        try:
+            server_socket.close()
+            server_status = False
+            window[event].update("Connect to Server")
+            window["-EventLog-"].print(f"Disconnected from the server:\n")
+        except Exception as e:
+            window["-EventLog-"].print(f"Failed to connect to the server: {str(e)}\n")    
     elif event == "Set Power":
         #Grabbing power value from input box
         #Could add some logic to make sure input values are correct but will save for later if have time...
@@ -142,8 +163,17 @@ while True:
         
         for tag in all_tags:
             if tag in prev_read and tag in current_tags:
-                window["-EventLog-"].print(str(tag) + " stayed in field\n")
-                #send to server here  
+                if tag.decode("utf-8") in item_dictionary:
+                    window["-EventLog-"].print(item_dictionary[tag.decode("utf-8")] + " stayed in field\n")
+                    if server_status:
+                        try:
+                            msg = item_dictionary[tag.decode("utf-8")] + " stayed in field\n"
+                            server_socket.send(msg)
+                        except Exception as e:
+                            window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
+                else:
+                    window["-EventLog-"].print(str(tag) + " stayed in field\n")
+                 
             elif tag in prev_read and tag not in current_tags:
                 window["-EventLog-"].print(str(tag) + " has left field\n")
                 #send to server here             
