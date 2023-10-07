@@ -33,14 +33,14 @@ epcs_to_update = []
 prev_read = []
 connected_readers = []
 selected_reader = "None"
-reading_status = False
+server_status = False
 
 # Define the GUI layout
 layout = [
     [sg.Text("Set Read Power (0-2700):"), sg.InputText(key="reader-power"), sg.Combo(connected_readers, default_value=selected_reader, key="cur-reader",size=(25,1), enable_events=True)],
     [sg.Text("EPC to Update:"), sg.Combo(epcs_to_update, default_value=epc_to_update, key="epc",size=(25,1), enable_events=True)],
     [sg.Text("New Item Name:"), sg.InputText(key="item-name")],
-    [sg.Button("Set Power"), sg.Button("Find Item"), sg.Button("Update Item"), sg.Button("Start Reading", key="read-btn")],
+    [sg.Button("Set Power"), sg.Button("Find Item"), sg.Button("Update Item"), sg.Button("Start Server", key="server-btn")],
     [sg.Multiline("", size=(50, 10), key="-EventLog-", disabled=True)]
 ]
 
@@ -48,11 +48,7 @@ layout = [
 window = sg.Window("Smart Kitchen Server Application", layout, resizable=True, finalize=True)
 
 
-
-print(f"RFID Server listening on {server_address}")
-
-# Function to handle client connections
-
+window["-EventLog-"].print(f"RFID Server listening on {server_address}")
 
 # Event loop
 while True:
@@ -60,28 +56,9 @@ while True:
     
     if event == sg.WINDOW_CLOSED:
         break
-    elif event == "Connect":
-        #Connect to reader using usb 
-        reader_ip = values["connect-reader"]
-        try:
-            reader = mercury.Reader(reader_port, baudrate=115200)
-        except:
-            reader_status = "disconnected"
-            window["-EventLog-"].print(f"Falied to connect to Reader! Please check device URI!\n")
-            continue
-        
-        
-        #Printing reader model and region to console
-        window["-EventLog-"].print(f"Reader Connected: Model {reader.get_model()}\n")
-        window["-EventLog-"].print(f"Supported Regions: {reader.get_supported_regions()}\n")
-        
-        #Set the reader region and default power
-        reader.set_region("NA2")
-        reader.set_read_plan([1], "GEN2", read_power=reader_power)
-        reader_status = "connected"
+    
     elif event == "Set Power":
         #Grabbing power value from input box
-        #Could add some logic to make sure input values are correct but will save for later if have time...
         if(reader_status == "disconnected"):
             window["-EventLog-"].print(f"Please connect to reader first!\n")
             continue
@@ -127,22 +104,33 @@ while True:
             continue
         item_dictionary.update({values["epc"].decode("utf-8") : values["item-name"]})
         window["-EventLog-"].print(f"Item Updated! Items in inventory: {item_dictionary}\n")
-    elif event == "read-btn" and reading_status == False:
-        window[event].update("Stop Reading")
-        reading_status = True
-    elif event == "read-btn" and reading_status:
-        window[event].update("Start Reading")
-        reading_status = False
+    elif event == "server-btn" and server_status == False:
+        window[event].update("Stop Server")
+        server_status = True
+    elif event == "server-btn" and server_status:
+        window[event].update("Start Server")
+        server_status = False
 
     
 
-    if reading_status:
+    if server_status:
         try:
             data, client_address = server_socket.recvfrom(1024)
-            window["-EventLog-"].print(f"Connected to {client_address}")
+            
+
             window["-EventLog-"].print(f"Received data from RFID client {client_address}: {data.decode('utf-8')}")
-            #client_handler = threading.Thread(target=handle_client, args=(data, client_address))
-            #client_handler.start()
+
+
+            #Logic for handling connections for the RFID reader clients
+            if data.decode('utf-8') == "Table Reader Connected":
+                window["-EventLog-"].print(f"Connected to Table Reader @ {client_address}")
+                connected_readers.append({"table-reader" : client_address})
+                reader_status = True
+            elif data.decode('utf-8') == "Cabinet Reader Connected":
+                window["-EventLog-"].print(f"Connected to Cabinet Reader @ {client_address}")
+                connected_readers.append({"cabinet-reader" : client_address})
+                reader_status = True
+            
         except:
             continue
 

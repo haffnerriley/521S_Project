@@ -18,9 +18,10 @@ reading_status = False
 client_socket = None
 server_status = False
 server_address = "undefined"
+client_msg = None
 # Define the GUI layout
 layout = [
-    [sg.Text("Server IP Address:"), sg.InputText("", key="server-addr"),sg.Text("Server Port: "), sg.InputText("", key="server-port"), ],
+    [sg.Text("Server IP Address:"), sg.InputText("", key="server-addr"),sg.Text("Server Port: "), sg.InputText("12345", key="server-port"), sg.Text("Client ID(Table, Cabinet...):"), sg.InputText("", key="client-id")],
     [sg.Text("Device URI:"), sg.InputText("tmr:///dev/ttyUSB0", key="connect-reader")],
     [sg.Text("Set Read Power (0-2700):"), sg.InputText(key="reader-power")],
     [sg.Text("EPC to Update:"), sg.Combo(epcs_to_update, default_value=epc_to_update, key="epc",size=(25,1), enable_events=True)],
@@ -74,8 +75,13 @@ while True:
             client_socket.connect(server_address)
             server_status = True
             window[event].update("Disconnect from Server")
+            
+            client_msg = bytes(values['client-id'] + ' Reader Connected', encoding='utf-8')
+            if(client_msg == None):
+                window["-EventLog-"].print(f"Please provide a client identifier like Table or Cabinet\n")
+            else:
+                client_socket.sendto(client_msg, server_address)
             window["-EventLog-"].print(f"Connected to the server:\n")
-            client_socket.sendto(b'Table Reader Connected', server_address)
         except Exception as e:
             window["-EventLog-"].print(f"Failed to connect to the server: {str(e)}\n")
     elif event == "server-btn" and server_status:
