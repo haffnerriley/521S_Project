@@ -9,6 +9,7 @@ import threading
 import requests
 from netifaces import interfaces, ifaddresses, AF_INET
 
+
 ipaddr = None
 for ifaceName in interfaces():
     addresses = [i['addr'] for i in ifaddresses(ifaceName).setdefault(AF_INET, [{'addr':'No IP addr'}] )]
@@ -117,10 +118,13 @@ while True:
         try:
             data, client_address = server_socket.recvfrom(1024)
             
-
-            window["-EventLog-"].print(f"Received data from RFID client {client_address}: {data.decode('utf-8')}")
-
-
+            if data.decode('utf-8') == "Table Reader Readings":
+                print("Here")
+                data, client_address = server_socket.recvfrom(1024)
+                if data.decode('utf-8') == "Table Reader Readings":
+                    print("farts")
+            else:
+                print("taod")
             #Logic for handling connections for the RFID reader clients
             if data.decode('utf-8') == "Table Reader Connected":
                 window["-EventLog-"].print(f"Connected to Table Reader @ {client_address}")
