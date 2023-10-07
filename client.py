@@ -74,12 +74,12 @@ while True:
             server_status = True
             window[event].update("Disconnect from Server")
             window["-EventLog-"].print(f"Connected to the server:\n")
-            client_socket.send(b'test')
+            client_socket.sendto(b'test', server_address)
         except Exception as e:
             window["-EventLog-"].print(f"Failed to connect to the server: {str(e)}\n")
     elif event == "server-btn" and server_status:
         try:
-            server_socket.close()
+            client_socket.close()
             server_status = False
             window[event].update("Connect to Server")
             window["-EventLog-"].print(f"Disconnected from the server:\n")
