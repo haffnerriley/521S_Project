@@ -68,18 +68,19 @@ while True:
     elif event == "server-btn" and server_status == False:
         try:
             # Connect to the server (change the server address and port as needed)
-            server_address = (values["server-addr"], values["server-port"])
-            client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            client_socket.connect(('toadMonster', 12345))
+            #server_address = (values["server-addr"], values["server-port"])
+            server_address = ('frogPerson', 12345)
+            client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM,0)
+            client_socket.connect(('frogPerson', 12345))
             server_status = True
             window[event].update("Disconnect from Server")
             window["-EventLog-"].print(f"Connected to the server:\n")
-            client_socket.send(b'test')
+            client_socket.sendto(b'test', server_address)
         except Exception as e:
             window["-EventLog-"].print(f"Failed to connect to the server: {str(e)}\n")
     elif event == "server-btn" and server_status:
         try:
-            server_socket.close()
+            client_socket.close()
             server_status = False
             window[event].update("Connect to Server")
             window["-EventLog-"].print(f"Disconnected from the server:\n")

@@ -67,11 +67,12 @@ while True:
     event, values = window.read(timeout=500)
     try:
         print("Waiting for a connection...")
-        data, client_address = server_socket.recvfrom(1024)
+        data, client_address = server_socket.recvfrom(4)
         #client_socket, client_address = server_socket.accept()
         print(f"Connected to {client_address}")
-        client_handler = threading.Thread(target=handle_client, args=(data, client_address))
-        client_handler.start()
+        print(f"Received data from RFID client {client_address}: {data.decode('utf-8')}")
+        #client_handler = threading.Thread(target=handle_client, args=(data, client_address))
+        #client_handler.start()
     except:
         print("Failed to connect")
 
