@@ -17,9 +17,10 @@ prev_read = []
 reading_status = False
 client_socket = None
 server_status = False
+
 # Define the GUI layout
 layout = [
-    [sg.Text("Server IP Address/Hostname:"), sg.InputText("", key="server-addr"),sg.Text("Server Port: "), sg.InputText("", key="server-port"), ],
+    [sg.Text("Server IP Address:"), sg.InputText("", key="server-addr"),sg.Text("Server Port: "), sg.InputText("", key="server-port"), ],
     [sg.Text("Device URI:"), sg.InputText("tmr:///dev/ttyUSB0", key="connect-reader")],
     [sg.Text("Set Read Power (0-2700):"), sg.InputText(key="reader-power")],
     [sg.Text("EPC to Update:"), sg.Combo(epcs_to_update, default_value=epc_to_update, key="epc",size=(25,1), enable_events=True)],
@@ -68,9 +69,9 @@ while True:
     elif event == "server-btn" and server_status == False:
         try:
             # Connect to the server (change the server address and port as needed)
-            server_address = (values["server-addr"], values["server-port"])
+            server_address = (str(values["server-addr"]), int(values["server-port"]))
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            client_socket.connect(('192.168.1.11', 12345))
+            client_socket.connect(server_address)
             server_status = True
             window[event].update("Disconnect from Server")
             window["-EventLog-"].print(f"Connected to the server:\n")
