@@ -17,7 +17,7 @@ prev_read = []
 reading_status = False
 client_socket = None
 server_status = False
-
+server_address = "undefined"
 # Define the GUI layout
 layout = [
     [sg.Text("Server IP Address:"), sg.InputText("", key="server-addr"),sg.Text("Server Port: "), sg.InputText("", key="server-port"), ],
@@ -75,7 +75,7 @@ while True:
             server_status = True
             window[event].update("Disconnect from Server")
             window["-EventLog-"].print(f"Connected to the server:\n")
-            client_socket.sendto(b'test', server_address)
+            client_socket.sendto(b'Table Reader Connected', server_address)
         except Exception as e:
             window["-EventLog-"].print(f"Failed to connect to the server: {str(e)}\n")
     elif event == "server-btn" and server_status:
@@ -170,7 +170,7 @@ while True:
                     if server_status:
                         try:
                             msg = item_dictionary[tag.decode("utf-8")] + " stayed in field\n"
-                            server_socket.send(msg)
+                            client_socket.sendto(msg, server_address)
                         except Exception as e:
                             window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
                 else:

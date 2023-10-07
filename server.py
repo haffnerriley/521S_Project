@@ -52,39 +52,11 @@ window = sg.Window("Smart Kitchen Server Application", layout, resizable=True, f
 print(f"RFID Server listening on {server_address}")
 
 # Function to handle client connections
-def handle_client(data, address):
-    try:
-        while True:
-            # Receive data from the client (RFID reader)
-            #data = client_socket.recv(4)
-            print("here")
-            if not data:
-                break
-            # Process the received data (RFID tag information)
-            # Implement your processing logic here
-            
-            # For example, print the received data
-            print(f"Received data from RFID client {address}: {data.decode('utf-8')}")
-            #print(f"Received data from RFID client: {data.decode('utf-8')}")
-    except Exception as e:
-        print(f"Error: {str(e)}")
+
 
 # Event loop
 while True:
     event, values = window.read(timeout=500)
-    try:
-        print("Waiting for a connection...")
-        data, client_address = server_socket.recvfrom(4)
-        #client_socket, client_address = server_socket.accept()
-        print(f"Connected to {client_address}")
-        print(f"Received data from RFID client {client_address}: {data.decode('utf-8')}")
-        #client_handler = threading.Thread(target=handle_client, args=(data, client_address))
-        #client_handler.start()
-    except:
-        print("Failed to connect")
-
-    # Start a new thread to handle the client connection
-    
     
     if event == sg.WINDOW_CLOSED:
         break
@@ -165,31 +137,16 @@ while True:
     
 
     if reading_status:
-        #make a read
-        current_tags = list(map(lambda t: t.epc, reader.read()))
-    
-        #combine
-        all_tags = current_tags + prev_read
-        #remove duplicates
-        all_tags = list(set(all_tags))
+        try:
+            data, client_address = server_socket.recvfrom(1024)
+            window["-EventLog-"].print(f"Connected to {client_address}")
+            window["-EventLog-"].print(f"Received data from RFID client {client_address}: {data.decode('utf-8')}")
+            #client_handler = threading.Thread(target=handle_client, args=(data, client_address))
+            #client_handler.start()
+        except:
+            continue
 
         
-        for tag in all_tags:
-            if tag in prev_read and tag in current_tags:
-                window["-EventLog-"].print(str(tag) + " stayed in field\n")
-                #send to server here  
-            elif tag in prev_read and tag not in current_tags:
-                window["-EventLog-"].print(str(tag) + " has left field\n")
-                #send to server here             
-            elif tag in current_tags and tag not in prev_read:
-                window["-EventLog-"].print(str(tag) + " has entered field\n")
-                #send to server here
-            
-                
-        
-        prev_read = current_tags[:]
-
-        #time.sleep(1)
 
     
 
