@@ -70,7 +70,7 @@ while True:
             # Connect to the server (change the server address and port as needed)
             server_address = (values["server-addr"], values["server-port"])
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            client_socket.connect(('toadMonster', 12345))
+            client_socket.connect(('192.168.1.11', 12345))
             server_status = True
             window[event].update("Disconnect from Server")
             window["-EventLog-"].print(f"Connected to the server:\n")

@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
 from __future__ import print_function
 import PySimpleGUI as sg
-
-
-
 import time
 from datetime import datetime
 import mercury
 import socket
 import threading
+import requests
+from netifaces import interfaces, ifaddresses, AF_INET
 
-host = socket.gethostname()
+ipaddr = None
+for ifaceName in interfaces():
+    addresses = [i['addr'] for i in ifaddresses(ifaceName).setdefault(AF_INET, [{'addr':'No IP addr'}] )]
+    if ifaceName == 'wlan0':
+        ipaddr = addresses[0]
+
+
 # Configure the server address and port
-server_address = (host, 12345)
+server_address = (ipaddr, 12345)
 
 # Create a socket and bind it to the server address
 server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -41,6 +46,8 @@ layout = [
 
 # Create the window
 window = sg.Window("Smart Kitchen Server Application", layout, resizable=True, finalize=True)
+
+
 
 print(f"RFID Server listening on {server_address}")
 
