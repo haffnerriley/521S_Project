@@ -5,7 +5,7 @@ import socket
 import time
 from datetime import datetime
 import mercury
-
+import select
 
 reader = "undefined"
 reader_status = "disconnected"
@@ -192,10 +192,20 @@ while True:
                 
         
         prev_read = current_tags[:]
-
+    
         #time.sleep(1)
 
     
-
+    if server_status:
+            readable, _, _ = select.select([client_socket], [], [], 0)
+            if client_socket in readable:
+                try:
+                    server_msg = client_socket.recv(1024).decode('utf-8')
+                    if server_msg:
+                        console_history = window["-EventLog-"].get()
+                        window["-EventLog-"].print("Server says: " + server_msg + "\n")
+                        # Handle the server's message as needed
+                except Exception as e:
+                    window["-EventLog-"].print(f"Error while receiving from server: {str(e)}\n")
 # Close the window
 window.close()

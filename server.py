@@ -128,11 +128,15 @@ while True:
             #Logic for handling connections for the RFID reader clients
             if data.decode('utf-8') == "Table Reader Connected":
                 window["-EventLog-"].print(f"Connected to Table Reader @ {client_address}")
-                connected_readers.append({"table-reader" : client_address})
+                reader_info = {"table-reader" : client_address}
+                connected_readers.append(reader_info)    
+                window["cur-reader"].update(value=str(reader_info), values=connected_readers)
                 reader_status = True
             elif data.decode('utf-8') == "Cabinet Reader Connected":
                 window["-EventLog-"].print(f"Connected to Cabinet Reader @ {client_address}")
+                reader_info = {"cabinet-reader" : client_address}
                 connected_readers.append({"cabinet-reader" : client_address})
+                window["cur-reader"].update(value=str(reader_info), values=connected_readers)
                 reader_status = True
             
         except:
