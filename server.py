@@ -8,7 +8,7 @@ import socket
 import threading
 import requests
 from netifaces import interfaces, ifaddresses, AF_INET
-
+import re
 
 ipaddr = None
 for ifaceName in interfaces():
@@ -66,7 +66,12 @@ while True:
         reader_power = int(values["reader-power"])
         try:
             #Set the reader power, protocol, and number of antennas
-            reader.set_read_plan([1], "GEN2", read_power=reader_power)
+            client_socket = values["cur-reader"]
+            
+            # Input string
+            client_selected= client_socket['table-reader']
+            client_power = "Power " + str(reader_power)
+            server_socket.sendto(client_power.encode('utf-8'), client_selected)
         except:
             window["-EventLog-"].print(f"Failed to set reader power!\n")
             continue
@@ -78,18 +83,9 @@ while True:
             continue
 
         try:
-            reader.set_read_plan([1], "GEN2", read_power=reader_power)
-            epcs = map(lambda tag: tag.epc, reader.read())
-            epc_list = list(epcs)
-            window["-EventLog-"].print(f"Found Items: {epc_list}!\n")
-            if len(epc_list) > 0:
-                epc_to_update = epc_list[0].decode("utf-8")
-                window["epc"].update(value=str(epc_to_update), values=epc_list)
-                selected_item = item_dictionary.get(epc_to_update)
-                
-                if(selected_item != None):
-                    epc_to_update = selected_item
-                window["-EventLog-"].print(f"Selecting item: {epc_to_update}!\n")
+            client_socket = values["cur-reader"]
+            client_selected= client_socket['table-reader'] 
+            server_socket.sendto(b'Find', client_selected)
         except:
             window["-EventLog-"].print(f"Failed to start reading!\n")
             continue
@@ -118,11 +114,17 @@ while True:
         try:
             data, client_address = server_socket.recvfrom(1024)
             
-            if data.decode('utf-8') == "Table Reader Readings":
+            if data.decode('utf-8') == "Table Reader Find":
                 print("Here")
                 data, client_address = server_socket.recvfrom(1024)
-                if data.decode('utf-8') == "Table Reader Readings":
-                    print("farts")
+                if len(epc_list) > 0:
+                    epc_to_update = epc_list[0].decode("utf-8")
+                    window["epc"].update(value=str(epc_to_update), values=epc_list)
+                    selected_item = item_dictionary.get(epc_to_update)
+                
+                    if(selected_item != None):
+                        epc_to_update = selected_item
+                    window["-EventLog-"].print(f"Selecting item: {epc_to_update}!\n")
             else:
                 print("taod")
             #Logic for handling connections for the RFID reader clients

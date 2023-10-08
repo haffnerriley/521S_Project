@@ -6,7 +6,7 @@ import time
 from datetime import datetime
 import mercury
 import select
-
+import re
 reader = "undefined"
 reader_status = "disconnected"
 reader_power = 1000
@@ -34,7 +34,44 @@ layout = [
 window = sg.Window("Smart Kitchen Client Application", layout,resizable=True, finalize=True)
 
 
-    
+def clientPower(server_msg):
+    matched_numbers_str = power.group(1)
+    reader_power = int(matched_numbers_str)
+    if(reader_status == "disconnected"):
+        console_history = window["-EventLog-"].get()
+        window["-EventLog-"].update(console_history + "Please connect to reader first!\n")
+        return
+    try:
+        #Set the reader power, protocol, and number of antennas
+        reader.set_read_plan([1], "GEN2", read_power=reader_power)
+    except:
+        console_history = window["-EventLog-"].get()
+        window["-EventLog-"].update(console_history + "Failed to set reader power!\n")
+        return
+    console_history = window["-EventLog-"].get()
+    window["-EventLog-"].update(console_history + "Reader power set to" + reader_power + "\n")
+
+def clientFind(server_msg):
+    if(server_msg == "Find"):
+        if(reader_status == "disconnected"):
+            console_history = window["-EventLog-"].get()
+            window["-EventLog-"].update(console_history + "Please connect to reader first!\n")
+            return
+
+        try:
+            reader.set_read_plan([1], "GEN2", read_power=reader_power)
+            epcs = map(lambda tag: tag.epc, reader.read())
+            epc_list = list(epcs)
+            console_history = window["-EventLog-"].get()
+            window["-EventLog-"].print(console_history + "Server Found Items:" + epc_list +"\n")
+            client_socket.sendto(epc_list, server_address)
+            return
+        except:
+            console_history = window["-EventLog-"].get()
+            window["-EventLog-"].update(console_history + "Failed to start reading!\n")
+            client_socket.sendto(b'Failed to start reading!', server_address)
+            return
+
 
 
 # Event loop
@@ -148,6 +185,7 @@ while True:
             window["-EventLog-"].print(console_history + "Please input a new Item name!\n")
             continue
         item_dictionary.update({values["epc"].decode("utf-8") : values["item-name"]})
+
         console_history = window["-EventLog-"].get()
         window["-EventLog-"].print(console_history + "Item Updated! Items in inventory: " + item_dictionary + "\n")
     elif event == "read-btn" and reading_status == False:
@@ -200,10 +238,17 @@ while True:
             readable, _, _ = select.select([client_socket], [], [], 0)
             if client_socket in readable:
                 try:
-                    server_msg = client_socket.recv(1024).decode('utf-8')
+                    server_msg = client_socket.recv(1024).decode('utf-8')    
                     if server_msg:
-                        console_history = window["-EventLog-"].get()
-                        window["-EventLog-"].print("Server says: " + server_msg + "\n")
+                        pattern = r"Power (\d+)"
+                        power = re.match(pattern, server_msg)
+                        if power:
+                            clientPower(server_msg)
+                        else:
+                            print("Not power")
+                    else:
+                        print("Invalid message")
+                    clientFind(server_msg)
                         # Handle the server's message as needed
                 except Exception as e:
                     window["-EventLog-"].print(f"Error while receiving from server: {str(e)}\n")
