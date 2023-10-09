@@ -113,22 +113,22 @@ while True:
     if server_status:
         try:
             data, client_address = server_socket.recvfrom(1024)
-            
+            #Logic for handling connections for the RFID reader clients
+            print(data)
             if data.decode('utf-8') == "Table Reader Find":
                 print("Here")
                 data, client_address = server_socket.recvfrom(1024)
-                if len(epc_list) > 0:
-                    epc_to_update = epc_list[0].decode("utf-8")
+                if len(data) > 0:
+                    epc_to_update = data.decode("utf-8")
+                    if(epc_list.get(epc_to_update) == None):
+                        epc_list.append(epc_to_update)
                     window["epc"].update(value=str(epc_to_update), values=epc_list)
                     selected_item = item_dictionary.get(epc_to_update)
                 
                     if(selected_item != None):
                         epc_to_update = selected_item
                     window["-EventLog-"].print(f"Selecting item: {epc_to_update}!\n")
-            else:
-                print("taod")
-            #Logic for handling connections for the RFID reader clients
-            if data.decode('utf-8') == "Table Reader Connected":
+            elif data.decode('utf-8') == "Table Reader Connected":
                 window["-EventLog-"].print(f"Connected to Table Reader @ {client_address}")
                 reader_info = {"table-reader" : client_address}
                 connected_readers.append(reader_info)    

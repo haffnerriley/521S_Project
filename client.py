@@ -7,6 +7,7 @@ from datetime import datetime
 import mercury
 import select
 import re
+import pickle
 reader = "undefined"
 reader_status = "disconnected"
 reader_power = 1000
@@ -21,7 +22,7 @@ server_address = "undefined"
 client_msg = None
 # Define the GUI layout
 layout = [
-    [sg.Text("Server IP Address:"), sg.InputText("", key="server-addr"),sg.Text("Server Port: "), sg.InputText("12345", key="server-port"), sg.Text("Client ID(Table, Cabinet...):"), sg.InputText("", key="client-id")],
+    [sg.Text("Server IP Address:"), sg.InputText("192.168.1.11", key="server-addr"),sg.Text("Server Port: "), sg.InputText("12345", key="server-port"), sg.Text("Client ID(Table, Cabinet...):"), sg.InputText("Table", key="client-id")],
     [sg.Text("Device URI:"), sg.InputText("tmr:///dev/ttyUSB0", key="connect-reader")],
     [sg.Text("Set Read Power (0-2700):"), sg.InputText(key="reader-power")],
     [sg.Text("EPC to Update:"), sg.Combo(epcs_to_update, default_value=epc_to_update, key="epc",size=(25,1), enable_events=True)],
@@ -34,43 +35,54 @@ layout = [
 window = sg.Window("Smart Kitchen Client Application", layout,resizable=True, finalize=True)
 
 
-def clientPower(server_msg):
-    matched_numbers_str = power.group(1)
-    reader_power = int(matched_numbers_str)
+def clientPower(power_level):
+    global reader_power
+    global reader
+    global window
+    
+    reader_power = int(power_level)
+
     if(reader_status == "disconnected"):
-        console_history = window["-EventLog-"].get()
-        window["-EventLog-"].update(console_history + "Please connect to reader first!\n")
+        window["-EventLog-"].print(f"Please connect to reader first!\n")
         return
     try:
         #Set the reader power, protocol, and number of antennas
+        reader.set_read_plan([1], "GEN2", read_power=int(power_level))
+    except:
+        window["-EventLog-"].print(f"Failed to set reader power!\n")
+        return
+    window["-EventLog-"].print(f"Reader power set to {reader_power}\n")
+
+def clientFind():
+    global reader_power
+    global reader
+    global window
+    global client_socket
+    global server_address
+
+    if(reader_status == "disconnected"):
+        window["-EventLog-"].print(f"Please connect to reader first!\n")
+        return
+    
+    try:
         reader.set_read_plan([1], "GEN2", read_power=reader_power)
+        epcs = map(lambda tag: tag.epc, reader.read())
+        epc_list = list(epcs)
+        if len(epc_list) > 0:
+            epc_to_update_server = epc_list[0].decode("utf-8")
+        
+        window["-EventLog-"].print(f"Server Found Items: {epc_list}\n")
+        print(epc_to_update_server)
+        client_socket.sendto(bytes(epc_to_update_server, encoding="utf-8"), server_address)
+        client_socket.sendto(b'Table Reader Find', server_address)
+       
+        print("Fart")
+        return
     except:
         console_history = window["-EventLog-"].get()
-        window["-EventLog-"].update(console_history + "Failed to set reader power!\n")
+        window["-EventLog-"].update(console_history + "Failed to start reading!\n")
+        client_socket.sendto(b'Failed to start reading!', server_address)
         return
-    console_history = window["-EventLog-"].get()
-    window["-EventLog-"].update(console_history + "Reader power set to" + reader_power + "\n")
-
-def clientFind(server_msg):
-    if(server_msg == "Find"):
-        if(reader_status == "disconnected"):
-            console_history = window["-EventLog-"].get()
-            window["-EventLog-"].update(console_history + "Please connect to reader first!\n")
-            return
-
-        try:
-            reader.set_read_plan([1], "GEN2", read_power=reader_power)
-            epcs = map(lambda tag: tag.epc, reader.read())
-            epc_list = list(epcs)
-            console_history = window["-EventLog-"].get()
-            window["-EventLog-"].print(console_history + "Server Found Items:" + epc_list +"\n")
-            client_socket.sendto(epc_list, server_address)
-            return
-        except:
-            console_history = window["-EventLog-"].get()
-            window["-EventLog-"].update(console_history + "Failed to start reading!\n")
-            client_socket.sendto(b'Failed to start reading!', server_address)
-            return
 
 
 
@@ -97,8 +109,7 @@ while True:
         console_history = window["-EventLog-"].get()
         #Printing reader model and region to console
         window["-EventLog-"].update(console_history + 'Reader Connected: Model' + reader.get_model() + '\n')
-        console_history = window["-EventLog-"].get()
-        window["-EventLog-"].update(console_history + 'Supported Regions:'+ reader.get_supported_regions() + '\n')
+        window["-EventLog-"].print(f'Supported Regions: {reader.get_supported_regions()}\n')
         
         #Set the reader region and default power
         reader.set_region("NA2")
@@ -136,28 +147,27 @@ while True:
             console_history = window["-EventLog-"].get()
             window["-EventLog-"].update(console_history + "Please connect to reader first!\n")
             continue
+        if values["reader-power"] == "":
+            window["-EventLog-"].print(f"Please type in a power value between 0 and 2700!\n")
+            continue
         reader_power = int(values["reader-power"])
         try:
             #Set the reader power, protocol, and number of antennas
             reader.set_read_plan([1], "GEN2", read_power=reader_power)
         except:
-            console_history = window["-EventLog-"].get()
-            window["-EventLog-"].update(console_history + "Failed to set reader power!\n")
+            window["-EventLog-"].print(f"Failed to set reader power!\n")
             continue
-        console_history = window["-EventLog-"].get()
-        window["-EventLog-"].update(console_history + "Reader power set to" + reader_power + "\n")
+        window["-EventLog-"].print(f"Reader power set to {reader_power} \n")
     elif event == "Find Item":
         if(reader_status == "disconnected"):
-            console_history = window["-EventLog-"].get()
-            window["-EventLog-"].update(console_history + "Please connect to reader first!\n")
+            window["-EventLog-"].print(f"Please connect to reader first!\n")
             continue
 
         try:
             reader.set_read_plan([1], "GEN2", read_power=reader_power)
             epcs = map(lambda tag: tag.epc, reader.read())
             epc_list = list(epcs)
-            console_history = window["-EventLog-"].get()
-            window["-EventLog-"].print(console_history + "Found Items:" + epc_list +"\n")
+            window["-EventLog-"].print(f"Found Items: {epc_list}\n")
             if len(epc_list) > 0:
                 epc_to_update = epc_list[0].decode("utf-8")
                 window["epc"].update(value=str(epc_to_update), values=epc_list)
@@ -165,8 +175,7 @@ while True:
                 
                 if(selected_item != None):
                     epc_to_update = selected_item
-                console_history = window["-EventLog-"].get()
-                window["-EventLog-"].update(console_history + "Selecting item: " + epc_to_update + "\n")
+                window["-EventLog-"].print(f"Selecting item: {epc_to_update}\n")
         except:
             console_history = window["-EventLog-"].get()
             window["-EventLog-"].update(console_history + "Failed to start reading!\n")
@@ -243,12 +252,11 @@ while True:
                         pattern = r"Power (\d+)"
                         power = re.match(pattern, server_msg)
                         if power:
-                            clientPower(server_msg)
-                        else:
-                            print("Not power")
+                            clientPower(power.group(1))
+                        elif server_msg == "Find":
+                            clientFind()
                     else:
                         print("Invalid message")
-                    clientFind(server_msg)
                         # Handle the server's message as needed
                 except Exception as e:
                     window["-EventLog-"].print(f"Error while receiving from server: {str(e)}\n")
