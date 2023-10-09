@@ -79,8 +79,7 @@ def clientFind():
         print("Fart")
         return
     except:
-        console_history = window["-EventLog-"].get()
-        window["-EventLog-"].update(console_history + "Failed to start reading!\n")
+        window["-EventLog-"].print(f"Failed to start reading!\n")
         client_socket.sendto(b'Failed to start reading!', server_address)
         return
 
@@ -102,13 +101,11 @@ while True:
             reader = mercury.Reader(reader_port, baudrate=115200)
         except:
             reader_status = "disconnected"
-            console_history = window["-EventLog-"].get()
-            window["-EventLog-"].update(console_history + 'Falied to connect to Reader! Please check device URI!\n')
+            window["-EventLog-"].print(f'Falied to connect to Reader! Please check device URI!\n')
             continue
         
-        console_history = window["-EventLog-"].get()
         #Printing reader model and region to console
-        window["-EventLog-"].update(console_history + 'Reader Connected: Model' + reader.get_model() + '\n')
+        window["-EventLog-"].print(f'Reader Connected: Model {reader.get_model()}\n')
         window["-EventLog-"].print(f'Supported Regions: {reader.get_supported_regions()}\n')
         
         #Set the reader region and default power
@@ -123,7 +120,7 @@ while True:
             client_socket.connect(server_address)
             server_status = True
             window[event].update("Disconnect from Server")
-            
+
             client_msg = bytes(values['client-id'] + ' Reader Connected', encoding='utf-8')
             if(client_msg == None):
                 window["-EventLog-"].print(f"Please provide a client identifier like Table or Cabinet\n")
@@ -144,8 +141,7 @@ while True:
         #Grabbing power value from input box
         #Could add some logic to make sure input values are correct but will save for later if have time...
         if(reader_status == "disconnected"):
-            console_history = window["-EventLog-"].get()
-            window["-EventLog-"].update(console_history + "Please connect to reader first!\n")
+            window["-EventLog-"].print(f"Please connect to reader first!\n")
             continue
         if values["reader-power"] == "":
             window["-EventLog-"].print(f"Please type in a power value between 0 and 2700!\n")
@@ -177,26 +173,21 @@ while True:
                     epc_to_update = selected_item
                 window["-EventLog-"].print(f"Selecting item: {epc_to_update}\n")
         except:
-            console_history = window["-EventLog-"].get()
-            window["-EventLog-"].update(console_history + "Failed to start reading!\n")
+            window["-EventLog-"].print(f"Failed to start reading!\n")
             continue
     elif event == "Update Item":
         if(reader_status == "disconnected"):
-            console_history = window["-EventLog-"].get()
-            window["-EventLog-"].update(console_history + "Please connect to reader first!\n")
+            window["-EventLog-"].print(f"Please connect to reader first!\n")
             continue
         if(values["epc"] == "None"):
-            console_history = window["-EventLog-"].get()
-            window["-EventLog-"].print(console_history + "Please click Find Item button and pick an EPC to update! \n")
+            window["-EventLog-"].print(f"Please click Find Item button and pick an EPC to update! \n")
             continue
         if(values["item-name"] == ""):
-            console_history = window["-EventLog-"].get()
-            window["-EventLog-"].print(console_history + "Please input a new Item name!\n")
+            window["-EventLog-"].print(f"Please input a new Item name!\n")
             continue
         item_dictionary.update({values["epc"].decode("utf-8") : values["item-name"]})
 
-        console_history = window["-EventLog-"].get()
-        window["-EventLog-"].print(console_history + "Item Updated! Items in inventory: " + item_dictionary + "\n")
+        window["-EventLog-"].print(f"Item Updated! Items in inventory: {item_dictionary}\n")
     elif event == "read-btn" and reading_status == False:
         window[event].update("Stop Reading")
         reading_status = True
