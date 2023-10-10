@@ -7,7 +7,7 @@ from datetime import datetime
 import mercury
 import select
 import re
-import pickle
+import json
 reader = "undefined"
 reader_status = "disconnected"
 reader_power = 1000
@@ -44,15 +44,17 @@ def clientPower(power_level):
 
     if(reader_status == "disconnected"):
         window["-EventLog-"].print(f"Please connect to reader first!\n")
+        client_socket.sendto(b'Please connect to reader first!', server_address)
         return
     try:
         #Set the reader power, protocol, and number of antennas
         reader.set_read_plan([1], "GEN2", read_power=int(power_level))
     except:
         window["-EventLog-"].print(f"Failed to set reader power!\n")
+        client_socket.sendto(b'Failed to set reader power!', server_address)
         return
     window["-EventLog-"].print(f"Reader power set to {reader_power}\n")
-
+    client_socket.sendto(b'Reader Power Set!', server_address)
 def clientFind():
     global reader_power
     global reader
@@ -68,13 +70,23 @@ def clientFind():
         reader.set_read_plan([1], "GEN2", read_power=reader_power)
         epcs = map(lambda tag: tag.epc, reader.read())
         epc_list = list(epcs)
+        #Eventually, try to send this as a json object and decode the bytes or something...
+        epc_list_for_server = bytearray("*TRF", 'utf-8')
+       
+       
         if len(epc_list) > 0:
+            for epc in epc_list:
+                
+                epc_list_for_server.extend(epc)
+
+                
             epc_to_update_server = epc_list[0].decode("utf-8")
+            
         
         window["-EventLog-"].print(f"Server Found Items: {epc_list}\n")
-        print(epc_to_update_server)
-        client_socket.sendto(bytes(epc_to_update_server, encoding="utf-8"), server_address)
-        client_socket.sendto(b'Table Reader Find', server_address)
+        client_socket.sendto(epc_list_for_server, server_address)
+        #client_socket.sendto(bytes(epc_to_update_server, encoding="utf-8"), server_address)
+        
        
         print("Fart")
         return
@@ -214,7 +226,7 @@ while True:
                     if server_status:
                         try:
                             msg = item_dictionary[tag.decode("utf-8")] + " stayed in field\n"
-                            client_socket.sendto(msg, server_address)
+                            client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
                         except Exception as e:
                             window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
                 else:

@@ -21,10 +21,8 @@ for ifaceName in interfaces():
 server_address = (ipaddr, 12345)
 
 # Create a socket and bind it to the server address
-server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-server_socket.bind(server_address)
-#server_socket.listen(1)
-server_socket.settimeout(0.5)
+server_socket = None
+
 reader = "undefined"
 reader_status = "disconnected"
 reader_power = 1000
@@ -49,7 +47,7 @@ layout = [
 window = sg.Window("Smart Kitchen Server Application", layout, resizable=True, finalize=True)
 
 
-window["-EventLog-"].print(f"RFID Server listening on {server_address}")
+
 
 # Event loop
 while True:
@@ -62,6 +60,9 @@ while True:
         #Grabbing power value from input box
         if(reader_status == "disconnected"):
             window["-EventLog-"].print(f"Please connect to reader first!\n")
+            continue
+        if values["reader-power"] == "":
+            window["-EventLog-"].print(f"Please type in a power value between 0 and 2700!\n")
             continue
         reader_power = int(values["reader-power"])
         try:
@@ -99,13 +100,18 @@ while True:
         if(values["item-name"] == ""):
             window["-EventLog-"].print(f"Please input a new Item name!\n")
             continue
-        item_dictionary.update({values["epc"].decode("utf-8") : values["item-name"]})
+        item_dictionary.update({values["epc"] : values["item-name"]})
         window["-EventLog-"].print(f"Item Updated! Items in inventory: {item_dictionary}\n")
     elif event == "server-btn" and server_status == False:
-        window[event].update("Stop Server")
+        server_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        server_socket.bind(server_address)
+        server_socket.settimeout(0.5)
         server_status = True
+        window["-EventLog-"].print(f"RFID Server listening on {server_address}")
+        window[event].update("Stop Server")
     elif event == "server-btn" and server_status:
         window[event].update("Start Server")
+        server_socket.close()
         server_status = False
 
     
@@ -114,20 +120,25 @@ while True:
         try:
             data, client_address = server_socket.recvfrom(1024)
             #Logic for handling connections for the RFID reader clients
-            print(data)
-            if data.decode('utf-8') == "Table Reader Find":
-                print("Here")
-                data, client_address = server_socket.recvfrom(1024)
-                if len(data) > 0:
-                    epc_to_update = data.decode("utf-8")
-                    if(epc_list.get(epc_to_update) == None):
-                        epc_list.append(epc_to_update)
+            table_reader_regex = re.match(r'.*TRF(.*)', data.decode('utf-8')) 
+            
+            if(table_reader_regex):
+                
+                #data, client_address = server_socket.recvfrom(1024)
+                data = table_reader_regex.group(1)
+                split_pattern = re.compile(r'.{1,24}')
+
+                epc_list = split_pattern.findall(data)
+                print(epc_list)
+                window["-EventLog-"].print(f"Found Items: {epc_list}\n")
+                if len(epc_list) > 0:
+                    epc_to_update = epc_list[0]
                     window["epc"].update(value=str(epc_to_update), values=epc_list)
                     selected_item = item_dictionary.get(epc_to_update)
-                
+                    
                     if(selected_item != None):
                         epc_to_update = selected_item
-                    window["-EventLog-"].print(f"Selecting item: {epc_to_update}!\n")
+                    window["-EventLog-"].print(f"Selecting item: {epc_to_update}\n")
             elif data.decode('utf-8') == "Table Reader Connected":
                 window["-EventLog-"].print(f"Connected to Table Reader @ {client_address}")
                 reader_info = {"table-reader" : client_address}
@@ -140,7 +151,8 @@ while True:
                 connected_readers.append({"cabinet-reader" : client_address})
                 window["cur-reader"].update(value=str(reader_info), values=connected_readers)
                 reader_status = True
-            
+            else:
+                window["-EventLog-"].print(f"Client says: {data.decode('utf-8')}") 
         except:
             continue
 
