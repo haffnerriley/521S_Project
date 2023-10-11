@@ -85,10 +85,9 @@ def clientFind():
         
         window["-EventLog-"].print(f"Server Found Items: {epc_list}\n")
         client_socket.sendto(epc_list_for_server, server_address)
-        #client_socket.sendto(bytes(epc_to_update_server, encoding="utf-8"), server_address)
+        
         
        
-        print("Fart")
         return
     except:
         window["-EventLog-"].print(f"Failed to start reading!\n")
@@ -221,22 +220,34 @@ while True:
         
         for tag in all_tags:
             if tag in prev_read and tag in current_tags:
-                if tag.decode("utf-8") in item_dictionary:
-                    window["-EventLog-"].print(item_dictionary[tag.decode("utf-8")] + " stayed in field\n")
-                    if server_status:
-                        try:
-                            msg = item_dictionary[tag.decode("utf-8")] + " stayed in field\n"
-                            client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
-                        except Exception as e:
-                            window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
-                else:
-                    window["-EventLog-"].print(str(tag) + " stayed in field\n")
+                #if tag.decode("utf-8") in item_dictionary:
+                    #window["-EventLog-"].print(item_dictionary[tag.decode("utf-8")] + " stayed in field\n")
+                if server_status:
+                    try:
+                        msg =tag.decode("utf-8") + " stayed in field\n"
+                        client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
+                    except Exception as e:
+                        window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
                  
             elif tag in prev_read and tag not in current_tags:
                 window["-EventLog-"].print(str(tag) + " has left field\n")
+                if server_status:
+                    try:
+                        msg =tag.decode("utf-8") + " has left field\n"
+                        client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
+                    except Exception as e:
+                        window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
+                 
                 #send to server here             
             elif tag in current_tags and tag not in prev_read:
                 window["-EventLog-"].print(str(tag) + " has entered field\n")
+                if server_status:
+                    try:
+                        msg =tag.decode("utf-8") + " has entered field\n"
+                        client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
+                    except Exception as e:
+                        window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
+                 
                 #send to server here
             
                 
@@ -258,6 +269,9 @@ while True:
                             clientPower(power.group(1))
                         elif server_msg == "Find":
                             clientFind()
+                        elif server_msg == "Read":
+                            reading_status = not reading_status
+                            print("here fart")
                     else:
                         print("Invalid message")
                         # Handle the server's message as needed

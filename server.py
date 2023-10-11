@@ -31,15 +31,17 @@ item_dictionary = {}
 epcs_to_update = []
 prev_read = []
 connected_readers = []
+client_addrs = []
 selected_reader = "None"
 server_status = False
+server_read_status = False
 
 # Define the GUI layout
 layout = [
     [sg.Text("Set Read Power (0-2700):"), sg.InputText(key="reader-power"), sg.Combo(connected_readers, default_value=selected_reader, key="cur-reader",size=(25,1), enable_events=True)],
     [sg.Text("EPC to Update:"), sg.Combo(epcs_to_update, default_value=epc_to_update, key="epc",size=(25,1), enable_events=True)],
     [sg.Text("New Item Name:"), sg.InputText(key="item-name")],
-    [sg.Button("Set Power"), sg.Button("Find Item"), sg.Button("Update Item"), sg.Button("Start Server", key="server-btn")],
+    [sg.Button("Set Power"), sg.Button("Find Item"), sg.Button("Update Item"), sg.Button("Start Server", key="server-btn"), sg.Button("Start Reading", key="server-read")],
     [sg.Multiline("", size=(50, 10), key="-EventLog-", disabled=True)]
 ]
 
@@ -113,23 +115,67 @@ while True:
         window[event].update("Start Server")
         server_socket.close()
         server_status = False
-
+    elif event == "server-read" and server_read_status == False:
+        if len(connected_readers) == 0:
+            window["-EventLog-"].print(f"Please connect clients first!\n")
+            continue
+        try:
+            client_socket = values["cur-reader"]
+            for client_addr in client_addrs:
+                
+                client_selected= client_addr
+                server_socket.sendto(b'Read', client_selected)
+        except:
+            window["-EventLog-"].print(f"Failed to start reading!\n")
+            continue
+        server_read_status = True
+        window[event].update("Stop Reading")
+    elif event == "server-read" and server_read_status:
+        if len(connected_readers) == 0:
+            window["-EventLog-"].print(f"Please connect clients first!\n")
+            continue
+        
+        try:
+            client_socket = values["cur-reader"]
+            for client_addr in client_addrs:
+                client_selected= client_addr
+                server_socket.sendto(b'Read', client_selected)
+        except:
+            window["-EventLog-"].print(f"Failed to stop reading!\n")
+            continue
+        window[event].update("Start Reading")
+        server_read_status = False
     
 
     if server_status:
         try:
             data, client_address = server_socket.recvfrom(1024)
             #Logic for handling connections for the RFID reader clients
-            table_reader_regex = re.match(r'.*TRF(.*)', data.decode('utf-8')) 
-            
-            if(table_reader_regex):
+            table_find_regex = re.match(r'.*TRF(.*)', data.decode('utf-8')) 
+            table_read_regex = re.match(r'.*TRR(.*)', data.decode('utf-8'))
+            if(table_find_regex):
                 
-                #data, client_address = server_socket.recvfrom(1024)
-                data = table_reader_regex.group(1)
+                
+                data_find = table_find_regex.group(1)
                 split_pattern = re.compile(r'.{1,24}')
 
-                epc_list = split_pattern.findall(data)
-                print(epc_list)
+                epc_list = split_pattern.findall(data_find)
+                window["-EventLog-"].print(f"Found Items: {epc_list}\n")
+                if len(epc_list) > 0:
+                    epc_to_update = epc_list[0]
+                    window["epc"].update(value=str(epc_to_update), values=epc_list)
+                    selected_item = item_dictionary.get(epc_to_update)
+                    
+                    if(selected_item != None):
+                        epc_to_update = selected_item
+                    window["-EventLog-"].print(f"Selecting item: {epc_to_update}\n")
+            elif(table_read_regex):
+                
+                #data, client_address = server_socket.recvfrom(1024)
+                data_read = table_find_regex.group(1)
+                split_pattern = re.compile(r'.{1,24}')
+
+                epc_list = split_pattern.findall(data_read)
                 window["-EventLog-"].print(f"Found Items: {epc_list}\n")
                 if len(epc_list) > 0:
                     epc_to_update = epc_list[0]
@@ -142,6 +188,7 @@ while True:
             elif data.decode('utf-8') == "Table Reader Connected":
                 window["-EventLog-"].print(f"Connected to Table Reader @ {client_address}")
                 reader_info = {"table-reader" : client_address}
+                client_addrs.append(client_address)
                 connected_readers.append(reader_info)    
                 window["cur-reader"].update(value=str(reader_info), values=connected_readers)
                 reader_status = True
@@ -149,6 +196,7 @@ while True:
                 window["-EventLog-"].print(f"Connected to Cabinet Reader @ {client_address}")
                 reader_info = {"cabinet-reader" : client_address}
                 connected_readers.append({"cabinet-reader" : client_address})
+                client_addrs.append(client_address)
                 window["cur-reader"].update(value=str(reader_info), values=connected_readers)
                 reader_status = True
             else:
