@@ -10,9 +10,12 @@ import requests
 from netifaces import interfaces, ifaddresses, AF_INET
 import re
 
+#Get the IP address of the computer that the server is running on
 ipaddr = None
 for ifaceName in interfaces():
     addresses = [i['addr'] for i in ifaddresses(ifaceName).setdefault(AF_INET, [{'addr':'No IP addr'}] )]
+    
+    #Using wireless by default for the raspberry pi but this can be changed to use a different interface
     if ifaceName == 'wlan0':
         ipaddr = addresses[0]
 
@@ -23,17 +26,40 @@ server_address = (ipaddr, 12345)
 # Create a socket and bind it to the server address
 server_socket = None
 
+#RFID reader object
 reader = "undefined"
+
+#RFID reader connection status
 reader_status = "disconnected"
+
+#RFID reader power
 reader_power = 1000
+
+#Selected EPC to update through the find button 
 epc_to_update = "None"
+
+#Dictionary of items that the server maintains 
 item_dictionary = {}
+
+#List of EPCS that the server found using the Find button
 epcs_to_update = []
+
+#Previous RFID reads 
 prev_read = []
+
+#List of connected RFID reader clients 
 connected_readers = []
+
+#List of client Addresses 
 client_addrs = []
+
+#Reader currently selected in the GUI
 selected_reader = "None"
+
+#Status of server (Running or Not)
 server_status = False
+
+#Status of server reading from RFID modules 
 server_read_status = False
 
 # Define the GUI layout
@@ -68,11 +94,12 @@ while True:
             continue
         reader_power = int(values["reader-power"])
         try:
-            #Set the reader power, protocol, and number of antennas
+            #Grab the current client reader selected in the dropdown
             client_socket = values["cur-reader"]
             
-            # Input string
-            client_selected= client_socket['table-reader']
+            for ip in client_socket:
+                client_selected= client_socket[ip] 
+            
             client_power = "Power " + str(reader_power)
             server_socket.sendto(client_power.encode('utf-8'), client_selected)
         except:
@@ -87,7 +114,8 @@ while True:
 
         try:
             client_socket = values["cur-reader"]
-            client_selected= client_socket['table-reader'] 
+            for ip in client_socket:
+                client_selected= client_socket[ip]  
             server_socket.sendto(b'Find', client_selected)
         except:
             window["-EventLog-"].print(f"Failed to start reading!\n")
@@ -205,12 +233,12 @@ while True:
                 client_addrs.append(client_address)
                 window["cur-reader"].update(value=str(reader_info), values=connected_readers)
                 reader_status = True
-            else:
+            elif data.decode('utf-8') == "Client Disconnected":
                 client_addrs.remove(client_address)
-                print("fart")
                 for client in connected_readers:
                     connected_readers.remove(client)
                 window["cur-reader"].update(values=connected_readers)
+            else:
                 window["-EventLog-"].print(f"Client says: {data.decode('utf-8')}") 
         except:
             continue
