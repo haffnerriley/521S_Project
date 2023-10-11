@@ -5,8 +5,9 @@ import socket
 import time
 from datetime import datetime
 import mercury
-
-
+import select
+import re
+import json
 reader = "undefined"
 reader_status = "disconnected"
 reader_power = 1000
@@ -17,9 +18,12 @@ prev_read = []
 reading_status = False
 client_socket = None
 server_status = False
+server_address = "undefined"
+client_msg = None
+client_id = None
 # Define the GUI layout
 layout = [
-    [sg.Text("Server IP Address/Hostname:"), sg.InputText("", key="server-addr"),sg.Text("Server Port: "), sg.InputText("", key="server-port"), ],
+    [sg.Text("Server IP Address:"), sg.InputText("192.168.1.11", key="server-addr"),sg.Text("Server Port: "), sg.InputText("12345", key="server-port"), sg.Text("Client ID(Table, Cabinet...):"), sg.InputText("Table", key="client-id")],
     [sg.Text("Device URI:"), sg.InputText("tmr:///dev/ttyUSB0", key="connect-reader")],
     [sg.Text("Set Read Power (0-2700):"), sg.InputText(key="reader-power")],
     [sg.Text("EPC to Update:"), sg.Combo(epcs_to_update, default_value=epc_to_update, key="epc",size=(25,1), enable_events=True)],
@@ -32,7 +36,68 @@ layout = [
 window = sg.Window("Smart Kitchen Client Application", layout,resizable=True, finalize=True)
 
 
+def clientPower(power_level):
+    global reader_power
+    global reader
+    global window
     
+    reader_power = int(power_level)
+
+    if(reader_status == "disconnected"):
+        window["-EventLog-"].print(f"Please connect to reader first!\n")
+        client_socket.sendto(b'Please connect to reader first!', server_address)
+        return
+    try:
+        #Set the reader power, protocol, and number of antennas
+        reader.set_read_plan([1], "GEN2", read_power=int(power_level))
+    except:
+        window["-EventLog-"].print(f"Failed to set reader power!\n")
+        client_socket.sendto(b'Failed to set reader power!', server_address)
+        return
+    window["-EventLog-"].print(f"Reader power set to {reader_power}\n")
+    client_socket.sendto(b'Reader Power Set!', server_address)
+def clientFind():
+    global reader_power
+    global reader
+    global window
+    global client_socket
+    global server_address
+
+    if(reader_status == "disconnected"):
+        window["-EventLog-"].print(f"Please connect to reader first!\n")
+        return
+    
+    try:
+        reader.set_read_plan([1], "GEN2", read_power=reader_power)
+        epcs = map(lambda tag: tag.epc, reader.read())
+        epc_list = list(epcs)
+        epc_list_for_server = []
+        #Eventually, try to send this as a json object and decode the bytes or something...
+        if(client_id == "Table"):
+            epc_list_for_server = bytearray("*TRF", 'utf-8')
+        elif(client_id == "Cabinet"):
+            epc_list_for_server = bytearray("*CRF", 'utf-8')
+       
+        if len(epc_list) > 0:
+            for epc in epc_list:
+                
+                epc_list_for_server.extend(epc)
+
+                
+            epc_to_update_server = epc_list[0].decode("utf-8")
+            
+        
+        window["-EventLog-"].print(f"Server Found Items: {epc_list}\n")
+        client_socket.sendto(epc_list_for_server, server_address)
+        
+        
+       
+        return
+    except:
+        window["-EventLog-"].print(f"Failed to start reading!\n")
+        client_socket.sendto(b'Failed to start reading!', server_address)
+        return
+
 
 
 # Event loop
@@ -51,15 +116,12 @@ while True:
             reader = mercury.Reader(reader_port, baudrate=115200)
         except:
             reader_status = "disconnected"
-            console_history = window["-EventLog-"].get()
-            window["-EventLog-"].update(console_history + 'Falied to connect to Reader! Please check device URI!\n')
+            window["-EventLog-"].print(f'Falied to connect to Reader! Please check device URI!\n')
             continue
         
-        console_history = window["-EventLog-"].get()
         #Printing reader model and region to console
-        window["-EventLog-"].update(console_history + 'Reader Connected: Model' + reader.get_model() + '\n')
-        console_history = window["-EventLog-"].get()
-        window["-EventLog-"].update(console_history + 'Supported Regions:'+ reader.get_supported_regions() + '\n')
+        window["-EventLog-"].print(f'Reader Connected: Model {reader.get_model()}\n')
+        window["-EventLog-"].print(f'Supported Regions: {reader.get_supported_regions()}\n')
         
         #Set the reader region and default power
         reader.set_region("NA2")
@@ -68,18 +130,25 @@ while True:
     elif event == "server-btn" and server_status == False:
         try:
             # Connect to the server (change the server address and port as needed)
-            server_address = (values["server-addr"], values["server-port"])
+            server_address = (str(values["server-addr"]), int(values["server-port"]))
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-            client_socket.connect(('toadMonster', 12345))
+            client_socket.connect(server_address)
             server_status = True
             window[event].update("Disconnect from Server")
+
+            client_msg = bytes(values['client-id'] + ' Reader Connected', encoding='utf-8')
+            if(client_msg == None):
+                window["-EventLog-"].print(f"Please provide a client identifier like Table or Cabinet\n")
+            else:
+                client_socket.sendto(client_msg, server_address)
+            client_id = values['client-id']
             window["-EventLog-"].print(f"Connected to the server:\n")
-            client_socket.send(b'test')
         except Exception as e:
             window["-EventLog-"].print(f"Failed to connect to the server: {str(e)}\n")
     elif event == "server-btn" and server_status:
         try:
-            server_socket.close()
+            client_socket.sendto(b"Client Disconnected", server_address)
+            client_socket.close()
             server_status = False
             window[event].update("Connect to Server")
             window["-EventLog-"].print(f"Disconnected from the server:\n")
@@ -89,31 +158,29 @@ while True:
         #Grabbing power value from input box
         #Could add some logic to make sure input values are correct but will save for later if have time...
         if(reader_status == "disconnected"):
-            console_history = window["-EventLog-"].get()
-            window["-EventLog-"].update(console_history + "Please connect to reader first!\n")
+            window["-EventLog-"].print(f"Please connect to reader first!\n")
+            continue
+        if values["reader-power"] == "":
+            window["-EventLog-"].print(f"Please type in a power value between 0 and 2700!\n")
             continue
         reader_power = int(values["reader-power"])
         try:
             #Set the reader power, protocol, and number of antennas
             reader.set_read_plan([1], "GEN2", read_power=reader_power)
         except:
-            console_history = window["-EventLog-"].get()
-            window["-EventLog-"].update(console_history + "Failed to set reader power!\n")
+            window["-EventLog-"].print(f"Failed to set reader power!\n")
             continue
-        console_history = window["-EventLog-"].get()
-        window["-EventLog-"].update(console_history + "Reader power set to" + reader_power + "\n")
+        window["-EventLog-"].print(f"Reader power set to {reader_power} \n")
     elif event == "Find Item":
         if(reader_status == "disconnected"):
-            console_history = window["-EventLog-"].get()
-            window["-EventLog-"].update(console_history + "Please connect to reader first!\n")
+            window["-EventLog-"].print(f"Please connect to reader first!\n")
             continue
 
         try:
             reader.set_read_plan([1], "GEN2", read_power=reader_power)
             epcs = map(lambda tag: tag.epc, reader.read())
             epc_list = list(epcs)
-            console_history = window["-EventLog-"].get()
-            window["-EventLog-"].print(console_history + "Found Items:" + epc_list +"\n")
+            window["-EventLog-"].print(f"Found Items: {epc_list}\n")
             if len(epc_list) > 0:
                 epc_to_update = epc_list[0].decode("utf-8")
                 window["epc"].update(value=str(epc_to_update), values=epc_list)
@@ -121,28 +188,23 @@ while True:
                 
                 if(selected_item != None):
                     epc_to_update = selected_item
-                console_history = window["-EventLog-"].get()
-                window["-EventLog-"].update(console_history + "Selecting item: " + epc_to_update + "\n")
+                window["-EventLog-"].print(f"Selecting item: {epc_to_update}\n")
         except:
-            console_history = window["-EventLog-"].get()
-            window["-EventLog-"].update(console_history + "Failed to start reading!\n")
+            window["-EventLog-"].print(f"Failed to start reading!\n")
             continue
     elif event == "Update Item":
         if(reader_status == "disconnected"):
-            console_history = window["-EventLog-"].get()
-            window["-EventLog-"].update(console_history + "Please connect to reader first!\n")
+            window["-EventLog-"].print(f"Please connect to reader first!\n")
             continue
         if(values["epc"] == "None"):
-            console_history = window["-EventLog-"].get()
-            window["-EventLog-"].print(console_history + "Please click Find Item button and pick an EPC to update! \n")
+            window["-EventLog-"].print(f"Please click Find Item button and pick an EPC to update! \n")
             continue
         if(values["item-name"] == ""):
-            console_history = window["-EventLog-"].get()
-            window["-EventLog-"].print(console_history + "Please input a new Item name!\n")
+            window["-EventLog-"].print(f"Please input a new Item name!\n")
             continue
         item_dictionary.update({values["epc"].decode("utf-8") : values["item-name"]})
-        console_history = window["-EventLog-"].get()
-        window["-EventLog-"].print(console_history + "Item Updated! Items in inventory: " + item_dictionary + "\n")
+
+        window["-EventLog-"].print(f"Item Updated! Items in inventory: {item_dictionary}\n")
     elif event == "read-btn" and reading_status == False:
         window[event].update("Stop Reading")
         reading_status = True
@@ -164,31 +226,63 @@ while True:
         
         for tag in all_tags:
             if tag in prev_read and tag in current_tags:
-                if tag.decode("utf-8") in item_dictionary:
-                    window["-EventLog-"].print(item_dictionary[tag.decode("utf-8")] + " stayed in field\n")
-                    if server_status:
-                        try:
-                            msg = item_dictionary[tag.decode("utf-8")] + " stayed in field\n"
-                            server_socket.send(msg)
-                        except Exception as e:
-                            window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
-                else:
-                    window["-EventLog-"].print(str(tag) + " stayed in field\n")
+                #if tag.decode("utf-8") in item_dictionary:
+                    #window["-EventLog-"].print(item_dictionary[tag.decode("utf-8")] + " stayed in field\n")
+                if server_status:
+                    try:
+                       
+                        msg ="*" +client_id[0] +"RR"+ tag.decode("utf-8") + " stayed in field\n"
+                        
+                        client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
+                    except Exception as e:
+                        window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
                  
             elif tag in prev_read and tag not in current_tags:
                 window["-EventLog-"].print(str(tag) + " has left field\n")
+                if server_status:
+                    try:
+                        msg ="*" +client_id[0] +"RR"+ tag.decode("utf-8") + " has left field\n"
+                        client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
+                    except Exception as e:
+                        window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
+                 
                 #send to server here             
             elif tag in current_tags and tag not in prev_read:
                 window["-EventLog-"].print(str(tag) + " has entered field\n")
+                if server_status:
+                    try:
+                        msg ="*" +client_id[0] +"RR"+ tag.decode("utf-8") + " has entered field\n"
+                        client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
+                    except Exception as e:
+                        window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
+                 
                 #send to server here
             
                 
         
         prev_read = current_tags[:]
-
+    
         #time.sleep(1)
 
     
-
+    if server_status:
+            readable, _, _ = select.select([client_socket], [], [], 0)
+            if client_socket in readable:
+                try:
+                    server_msg = client_socket.recv(1024).decode('utf-8')    
+                    if server_msg:
+                        pattern = r"Power (\d+)"
+                        power = re.match(pattern, server_msg)
+                        if power:
+                            clientPower(power.group(1))
+                        elif server_msg == "Find":
+                            clientFind()
+                        elif server_msg == "Read":
+                            reading_status = not reading_status
+                    else:
+                        print("Invalid message")
+                        # Handle the server's message as needed
+                except Exception as e:
+                    window["-EventLog-"].print(f"Error while receiving from server: {str(e)}\n")
 # Close the window
 window.close()
