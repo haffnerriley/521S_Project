@@ -20,6 +20,7 @@ client_socket = None
 server_status = False
 server_address = "undefined"
 client_msg = None
+client_id = None
 # Define the GUI layout
 layout = [
     [sg.Text("Server IP Address:"), sg.InputText("192.168.1.11", key="server-addr"),sg.Text("Server Port: "), sg.InputText("12345", key="server-port"), sg.Text("Client ID(Table, Cabinet...):"), sg.InputText("Table", key="client-id")],
@@ -70,9 +71,12 @@ def clientFind():
         reader.set_read_plan([1], "GEN2", read_power=reader_power)
         epcs = map(lambda tag: tag.epc, reader.read())
         epc_list = list(epcs)
+        epc_list_for_server = []
         #Eventually, try to send this as a json object and decode the bytes or something...
-        epc_list_for_server = bytearray("*TRF", 'utf-8')
-       
+        if(client_id == "Table"):
+            epc_list_for_server = bytearray("*TRF", 'utf-8')
+        elif(client_id == "Cabinet"):
+            epc_list_for_server = bytearray("*CRF", 'utf-8')
        
         if len(epc_list) > 0:
             for epc in epc_list:
@@ -137,6 +141,7 @@ while True:
                 window["-EventLog-"].print(f"Please provide a client identifier like Table or Cabinet\n")
             else:
                 client_socket.sendto(client_msg, server_address)
+            client_id = values['client-id']
             window["-EventLog-"].print(f"Connected to the server:\n")
         except Exception as e:
             window["-EventLog-"].print(f"Failed to connect to the server: {str(e)}\n")
@@ -224,7 +229,9 @@ while True:
                     #window["-EventLog-"].print(item_dictionary[tag.decode("utf-8")] + " stayed in field\n")
                 if server_status:
                     try:
-                        msg =tag.decode("utf-8") + " stayed in field\n"
+                       
+                        msg ="*" +client_id[0] +"RR"+ tag.decode("utf-8") + " stayed in field\n"
+                        
                         client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
                     except Exception as e:
                         window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
@@ -233,7 +240,7 @@ while True:
                 window["-EventLog-"].print(str(tag) + " has left field\n")
                 if server_status:
                     try:
-                        msg =tag.decode("utf-8") + " has left field\n"
+                        msg ="*" +client_id[0] +"RR"+ tag.decode("utf-8") + " has left field\n"
                         client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
                     except Exception as e:
                         window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
@@ -243,7 +250,7 @@ while True:
                 window["-EventLog-"].print(str(tag) + " has entered field\n")
                 if server_status:
                     try:
-                        msg =tag.decode("utf-8") + " has entered field\n"
+                        msg ="*" +client_id[0] +"RR"+ tag.decode("utf-8") + " has entered field\n"
                         client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
                     except Exception as e:
                         window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
@@ -271,7 +278,6 @@ while True:
                             clientFind()
                         elif server_msg == "Read":
                             reading_status = not reading_status
-                            print("here fart")
                     else:
                         print("Invalid message")
                         # Handle the server's message as needed

@@ -151,8 +151,8 @@ while True:
         try:
             data, client_address = server_socket.recvfrom(1024)
             #Logic for handling connections for the RFID reader clients
-            table_find_regex = re.match(r'.*TRF(.*)', data.decode('utf-8')) 
-            table_read_regex = re.match(r'.*TRR(.*)', data.decode('utf-8'))
+            table_find_regex = re.match(r'.*TRF(.*)', data.decode('utf-8')) #TRF denotes a Table Reader Find packet
+            table_read_regex = re.match(r'.*TRR(.*)', data.decode('utf-8')) #TRR denotes a Table Reader Read packet
             if(table_find_regex):
                 
                 
@@ -172,19 +172,25 @@ while True:
             elif(table_read_regex):
                 
                 #data, client_address = server_socket.recvfrom(1024)
-                data_read = table_find_regex.group(1)
-                split_pattern = re.compile(r'.{1,24}')
+                data_read = table_read_regex.group(1)
+                epc_read = re.compile(r'^(.{24})')
+                
+                # Use re.match to find the match at the beginning of the string
+                extracted_epc = re.match(epc_read, data_read)
 
-                epc_list = split_pattern.findall(data_read)
-                window["-EventLog-"].print(f"Found Items: {epc_list}\n")
-                if len(epc_list) > 0:
-                    epc_to_update = epc_list[0]
-                    window["epc"].update(value=str(epc_to_update), values=epc_list)
-                    selected_item = item_dictionary.get(epc_to_update)
+                if extracted_epc:
+                    # Extract the first 24 bytes
+                    extracted_epc = extracted_epc.group(1)
                     
-                    if(selected_item != None):
-                        epc_to_update = selected_item
-                    window["-EventLog-"].print(f"Selecting item: {epc_to_update}\n")
+                    # The rest of the string after the first 24 bytes
+                    rest_of_string = data_read[len(extracted_epc):]
+                    item_read = item_dictionary.get(extracted_epc)
+                    if(item_read != None):
+                        window["-EventLog-"].print(f"{item_read}{rest_of_string}\n")
+                    else:
+                        window["-EventLog-"].print(f"{data_read}\n")
+                else:
+                    window["-EventLog-"].print(f"{data_read}\n")
             elif data.decode('utf-8') == "Table Reader Connected":
                 window["-EventLog-"].print(f"Connected to Table Reader @ {client_address}")
                 reader_info = {"table-reader" : client_address}
