@@ -147,6 +147,7 @@ while True:
             window["-EventLog-"].print(f"Failed to connect to the server: {str(e)}\n")
     elif event == "server-btn" and server_status:
         try:
+            client_socket.sendto(b"Client Disconnected", server_address)
             client_socket.close()
             server_status = False
             window[event].update("Connect to Server")

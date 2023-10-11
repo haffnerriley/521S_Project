@@ -206,6 +206,11 @@ while True:
                 window["cur-reader"].update(value=str(reader_info), values=connected_readers)
                 reader_status = True
             else:
+                client_addrs.remove(client_address)
+                print("fart")
+                for client in connected_readers:
+                    connected_readers.remove(client)
+                window["cur-reader"].update(values=connected_readers)
                 window["-EventLog-"].print(f"Client says: {data.decode('utf-8')}") 
         except:
             continue
