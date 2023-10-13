@@ -55,7 +55,8 @@ def clientPower(power_level):
         client_socket.sendto(b'Failed to set reader power!', server_address)
         return
     window["-EventLog-"].print(f"Reader power set to {reader_power}\n")
-    client_socket.sendto(b'Reader Power Set!', server_address)
+    client_power_res = "Reader Power Set to " +str(reader_power)
+    client_socket.sendto(client_power_res.encode("utf-8"), server_address)
 def clientFind():
     global reader_power
     global reader
@@ -65,6 +66,7 @@ def clientFind():
 
     if(reader_status == "disconnected"):
         window["-EventLog-"].print(f"Please connect to reader first!\n")
+        client_socket.sendto(b"Please connect to reader first!\n", server_address)
         return
     
     try:
@@ -278,6 +280,10 @@ while True:
                         elif server_msg == "Find":
                             clientFind()
                         elif server_msg == "Read":
+                            if(reader_status == "disconnected"):
+                                window["-EventLog-"].print(f"Please connect to reader first!\n")
+                                client_socket.sendto(b"Please connect to reader first!\n", server_address)
+                                continue
                             reading_status = not reading_status
                     else:
                         print("Invalid message")
