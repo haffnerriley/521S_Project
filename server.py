@@ -34,6 +34,12 @@ epc_to_update = "None"
 #Dictionary of items that the server maintains 
 item_dictionary = {}
 
+#Set of items that the table detects 
+table_set = set()
+
+#Set of items that the cabinet detects 
+cabinet_set = set()
+
 #List of EPCS that the server found using the Find button
 epcs_to_update = []
 
@@ -83,7 +89,62 @@ def findIP():
             #Configuring global ipaddr and server address
             ipaddr = addresses[0]
             server_address = (ipaddr, 12345)
+
+def handleFindResponse(regex):
+    global epc_to_update
+    global window
+    global item_dictionary
+    #Splitting the response up from the client find command 
+    data_find = regex.group(1)
+    
+    #Grab all EPC values send from client as a response to find command 
+    split_pattern = re.compile(r'.{1,24}')
+
+    #Finding all occurences of 24 byte EPCS in the client response
+    epc_list = split_pattern.findall(data_find)
+    window["-EventLog-"].print(f"Found Items: {epc_list}\n")
+    
+    #Set a default EPC in the dropdown menu 
+    if len(epc_list) > 0:
+        epc_to_update = epc_list[0]
+        window["epc"].update(value=str(epc_to_update), values=epc_list)
+        selected_item = item_dictionary.get(epc_to_update)
         
+        #Check if the item found was already in the user's inventory
+        if(selected_item != None):
+            epc_to_update = selected_item
+        window["-EventLog-"].print(f"Selecting item: {epc_to_update}\n")
+
+
+def handleReadResponse(regex): 
+    global window
+    global item_dictionary
+
+    #Grab the EPC value sent from the client
+    data_read = regex.group(1)
+    epc_read = re.compile(r'^(.{24})')
+    extracted_epc = re.match(epc_read, data_read)
+
+    if extracted_epc:
+        # Extract the first 24 bytes
+        extracted_epc = extracted_epc.group(1)
+        
+        # Grab the message sent with the EPC 
+        rest_of_string = data_read[len(extracted_epc):]
+        
+        #Check if the item exists in our dictionary 
+        item_read = item_dictionary.get(extracted_epc)
+        if(item_read != None):
+            window["-EventLog-"].print(f"{item_read}{rest_of_string}\n")
+        else:
+            window["-EventLog-"].print(f"{data_read}\n")
+
+        return extracted_epc
+    else:
+        window["-EventLog-"].print(f"{data_read}\n")
+    
+    return None
+
 # Event loop to handle GUI Client/Server Communication
 while True:
     
@@ -252,53 +313,27 @@ while True:
 
             #TRR denotes a Table Reader Read packet
             table_read_regex = re.match(r'.*TRR(.*)', data.decode('utf-8')) 
-           
-            if(table_find_regex):
-                
-                #Splitting the response up from the client find command 
-                data_find = table_find_regex.group(1)
-                
-                #Grab all EPC values send from client as a response to find command 
-                split_pattern = re.compile(r'.{1,24}')
+            
+            #CRF denotes a Cabinet Reader Find Response packet
+            cabinet_find_regex = re.match(r'.*CRF(.*)', data.decode('utf-8'))
 
-                #Finding all occurences of 24 byte EPCS in the client response
-                epc_list = split_pattern.findall(data_find)
-                window["-EventLog-"].print(f"Found Items: {epc_list}\n")
-                
-                #Set a default EPC in the dropdown menu 
-                if len(epc_list) > 0:
-                    epc_to_update = epc_list[0]
-                    window["epc"].update(value=str(epc_to_update), values=epc_list)
-                    selected_item = item_dictionary.get(epc_to_update)
-                    
-                    #Check if the item found was already in the user's inventory
-                    if(selected_item != None):
-                        epc_to_update = selected_item
-                    window["-EventLog-"].print(f"Selecting item: {epc_to_update}\n")
-            #Handles data sent from the client as a response to the read command
+            #CRR denotes a Cabinet Reader Read packet
+            cabinet_read_regex = re.match(r'.*CRR(.*)', data.decode('utf-8')) 
+
+            if(table_find_regex):
+                epc = handleFindResponse(table_find_regex)
             elif(table_read_regex):
-                
-                #Grab the EPC value sent from the client
-                data_read = table_read_regex.group(1)
-                epc_read = re.compile(r'^(.{24})')
-                extracted_epc = re.match(epc_read, data_read)
-    
-                if extracted_epc:
-                    # Extract the first 24 bytes
-                    extracted_epc = extracted_epc.group(1)
-                    
-                    # Grab the message sent with the EPC 
-                    rest_of_string = data_read[len(extracted_epc):]
-                    
-                    #Check if the item exists in our dictionary 
-                    item_read = item_dictionary.get(extracted_epc)
-                    if(item_read != None):
-                        window["-EventLog-"].print(f"{item_read}{rest_of_string}\n")
-                    else:
-                        window["-EventLog-"].print(f"{data_read}\n")
-                else:
-                    window["-EventLog-"].print(f"{data_read}\n")
-            #Handles when the table reader connects to the server
+                epc = handleReadResponse(table_read_regex)
+            
+                #Eventually may change format of data being sent from client to server... For now just add the epc to the clients dictionary if it isn't there already 
+                table_set.add(epc)
+            elif(cabinet_find_regex):
+                epc = handleFindResponse(cabinet_find_regex)
+            elif(cabinet_read_regex):
+                epc = handleReadResponse(cabinet_read_regex)
+
+                #Eventually may change format of data being sent from client to server... For now just add the epc to the clients dictionary if it isn't there already 
+                cabinet_set.add(epc)
             elif data.decode('utf-8') == "Table Reader Connected":
                 window["-EventLog-"].print(f"Connected to Table Reader @ {client_address}")
                 
