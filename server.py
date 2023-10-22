@@ -34,6 +34,12 @@ epc_to_update = "None"
 #Dictionary of items that the server maintains 
 item_dictionary = {}
 
+#Set of items that the table detects 
+table_set = set()
+
+#Set of items that the cabinet detects 
+cabinet_set = set()
+
 #List of EPCS that the server found using the Find button
 epcs_to_update = []
 
@@ -132,8 +138,12 @@ def handleReadResponse(regex):
             window["-EventLog-"].print(f"{item_read}{rest_of_string}\n")
         else:
             window["-EventLog-"].print(f"{data_read}\n")
+
+        return extracted_epc
     else:
         window["-EventLog-"].print(f"{data_read}\n")
+    
+    return None
 
 # Event loop to handle GUI Client/Server Communication
 while True:
@@ -311,13 +321,19 @@ while True:
             cabinet_read_regex = re.match(r'.*CRR(.*)', data.decode('utf-8')) 
 
             if(table_find_regex):
-                handleFindResponse(table_find_regex)
+                epc = handleFindResponse(table_find_regex)
             elif(table_read_regex):
-                handleReadResponse(table_read_regex)
+                epc = handleReadResponse(table_read_regex)
+            
+                #Eventually may change format of data being sent from client to server... For now just add the epc to the clients dictionary if it isn't there already 
+                table_set.add(epc)
             elif(cabinet_find_regex):
-                handleFindResponse(cabinet_find_regex)
+                epc = handleFindResponse(cabinet_find_regex)
             elif(cabinet_read_regex):
-                handleReadResponse(cabinet_read_regex)
+                epc = handleReadResponse(cabinet_read_regex)
+
+                #Eventually may change format of data being sent from client to server... For now just add the epc to the clients dictionary if it isn't there already 
+                cabinet_set.add(epc)
             elif data.decode('utf-8') == "Table Reader Connected":
                 window["-EventLog-"].print(f"Connected to Table Reader @ {client_address}")
                 
