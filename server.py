@@ -3,7 +3,6 @@ from __future__ import print_function
 import PySimpleGUI as sg
 import time
 from datetime import datetime
-import mercury
 import socket
 import threading
 import requests
