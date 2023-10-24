@@ -9,7 +9,8 @@ import mercury
 import select
 import re
 import json
-
+import math
+from collections import deque
 #RFID reader object
 reader = "undefined"
 
@@ -180,7 +181,7 @@ def client_read(EPC, read_val):
     else:
         epc_queue = item_confidence_vals.get(EPC)
         
-        #if the queue gets to 60 reads, then resize it
+        #if the queue gets to 60 reads, then resize it.... Probably will have to make this smaller or get the client reading faster!!
         if(epc_queue.qsize() == 60): 
             
             #Remove the first item in the queue to make space for adding another to the end
@@ -193,11 +194,38 @@ def client_read(EPC, read_val):
         item_confidence_vals.update({EPC : epc_queue})
         return epc_queue
 
- def client_calc_confidence(EPC_QUEUE):
+ #Calculate the number of hits
+def calc_hits(EPC_QUEUE):
+    
+    #Creating a counter for number of hits 
+    number_hits = 0
+    temp_queue = EPC_QUEUE
+    while not temp_queue.empty():
+        num_str = temp_queue.get()
+        number_hits += num_str
+    
+    print("Number of hits" + str(number_hits))
+    return number_hits
+
+
+
+#Probably a better way to do this that I can't think of...
+def client_calc_confidence(EPC_QUEUE):
     #Define stuff here for the confidence calculation 
+    #May have to do something with epc timestamps... Come back to later...
 
-
-    return confidence_val
+    #Calculate the hit miss ratio
+    num_reads = EPC_QUEUE.qsize()
+    num_hits = calc_hits(EPC_QUEUE)
+    hit_miss_ratio = num_hits/num_reads
+    print("Hit miss ratio: " + str(hit_miss_ratio))
+    #Get the Z-score value of our ratio
+    z_score=  math.sqrt(2) * math.erf(2 * hit_miss_ratio - 1)
+    print("z-score: " + str(z_score))
+    margin_of_error = z_score*(math.sqrt(hit_miss_ratio*(1-hit_miss_ratio))/num_reads)
+    print("MOE: " + str(margin_of_error))
+    confidence_interval = [hit_miss_ratio - margin_of_error, hit_miss_ratio + margin_of_error]
+    return confidence_interval
 # Event loop to handle GUI Client/Server Communication
 while True:
     
@@ -432,11 +460,15 @@ while True:
             
         prev_read = current_tags[:]
         
+        #Create dictionary of EPC's with their confidence intervals to send to server all at once 
+        epc_ci_list = {}
+       
         #New logic for RFID Detection
         #For all scanned tags, mark the item as read 
         for item in current_tags:
             epc_q = client_read(item, 1)
             ci_val = client_calc_confidence(epc_q)#Calculate the confidence value here 
+            epc_ci_list.update({item : ci_val})
         #Find the symmetric difference between the current tags read and all tags that the client has ever read 
         items_not_read = set(current_tags).symmetric_difference(client_epc_list)
 
@@ -447,9 +479,10 @@ while True:
         for item in items_not_read:
             epc_q = client_read(item, 0)
             ci_val = client_calc_confidence(epc_q) #Calculate the confidence value here 
-            #maybe make a dictionary of epc to CI value then send to server all at once 
+            epc_ci_list.update({item : ci_val})
+            
 
-        
+        print("HERE IS THE EPC CI LIST!!!" + str(epc_ci_list))
 
     #Checking if the client is connected to the server
     if server_status:
