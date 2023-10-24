@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import print_function
+from queue import Queue
 import PySimpleGUI as sg
 import socket
 import time
@@ -30,6 +31,9 @@ epcs_to_update = []
 #Previous RFID reads 
 prev_read = []
 
+#Dictionary of EPC's, the read count, time-stamp, and other data stored here for client algo
+item_confidence_vals = {}
+
 #Checks if the server requested the client to read
 reading_status = False
 
@@ -48,6 +52,8 @@ client_msg = None
 #Client identifier (Table, Cabinet)
 client_id = None
 
+#List of all EPC's the client has ever read 
+client_epc_list = []
 
 # Define the GUI layout
 layout = [
@@ -157,8 +163,41 @@ def clientFind():
         client_socket.sendto(b'Failed to start reading!', server_address)
         return
 
+#Handles the queus that each EPC has associated with it for caluclating the hit/miss ratio. The read value should be 1 if a hit 0 if a miss
+def client_read(EPC, read_val):
+    global item_confidence_vals
+    global client_epc_list
+    
+    #If the item is being read for the first time add it to the dictionary and create a new entry for it
+    if(item_confidence_vals.get(EPC) == None):
+        
+        #Add the new epc to the client list to use for updating each queue 
+        client_epc_list.append(EPC) 
+        epc_queue = Queue()
+        epc_queue.put(1)
+        item_confidence_vals.update({EPC : epc_queue})
+        return epc_queue
+    else:
+        epc_queue = item_confidence_vals.get(EPC)
+        
+        #if the queue gets to 60 reads, then resize it
+        if(epc_queue.qsize() == 60): 
+            
+            #Remove the first item in the queue to make space for adding another to the end
+            epc_queue.get() 
+            epc_queue.put(read_val)
+            
+        else:
+            epc_queue.put(read_val)
+        
+        item_confidence_vals.update({EPC : epc_queue})
+        return epc_queue
+
+ def client_calc_confidence(EPC_QUEUE):
+    #Define stuff here for the confidence calculation 
 
 
+    return confidence_val
 # Event loop to handle GUI Client/Server Communication
 while True:
     
@@ -339,7 +378,11 @@ while True:
     if reading_status:
         #make a read
         current_tags = list(map(lambda t: t.epc, reader.read()))
-    
+       
+        print(current_tags)
+        #Need to update all tags that have ever been scanned and make queue have zeros if not in the set of current tags 
+
+       
         #combine
         all_tags = current_tags + prev_read
         
@@ -350,6 +393,7 @@ while True:
         for tag in all_tags:
             #Handles logic for tags that are staying in the field
             if tag in prev_read and tag in current_tags:
+                #client_read(tag, 1)
                 if server_status:
                     try:
                         #Constructing payload for the server based on the client (Table, Cabinet)
@@ -362,6 +406,7 @@ while True:
             #Handles logic for tags that have left the field
             elif tag in prev_read and tag not in current_tags:
                 window["-EventLog-"].print(str(tag) + " has left field\n")
+                #client_read(tag, 1)
                 if server_status:
                     try:
                         #Constructing payload for the server based on the client (Table, Cabinet)
@@ -374,6 +419,7 @@ while True:
             #Handles logic for tags that have entered the field         
             elif tag in current_tags and tag not in prev_read:
                 window["-EventLog-"].print(str(tag) + " has entered field\n")
+                #client_read(tag, 1) #Do something with the queue here and caluclate the CI maybe then send to server...
                 if server_status:
                     try:
                         #Constructing payload for the server based on the client (Table, Cabinet)
@@ -383,9 +429,27 @@ while True:
                         client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
                     except Exception as e:
                         window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
-
+            
         prev_read = current_tags[:]
+        
+        #New logic for RFID Detection
+        #For all scanned tags, mark the item as read 
+        for item in current_tags:
+            epc_q = client_read(item, 1)
+            ci_val = client_calc_confidence(epc_q)#Calculate the confidence value here 
+        #Find the symmetric difference between the current tags read and all tags that the client has ever read 
+        items_not_read = set(current_tags).symmetric_difference(client_epc_list)
 
+        #These are the items that need to be marked as a miss by this client
+        
+        
+        #For any items not read, add a value of zero. 
+        for item in items_not_read:
+            epc_q = client_read(item, 0)
+            ci_val = client_calc_confidence(epc_q) #Calculate the confidence value here 
+            #maybe make a dictionary of epc to CI value then send to server all at once 
+
+        
 
     #Checking if the client is connected to the server
     if server_status:
