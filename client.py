@@ -11,6 +11,8 @@ import re
 import json
 import math
 from collections import deque
+import statistics
+
 #RFID reader object
 reader = "undefined"
 
@@ -176,12 +178,13 @@ def client_read(EPC, read_val):
         client_epc_list.append(EPC) 
         epc_queue = Queue()
         epc_queue.put(1)
+        epc_queue.put(1) #Adding a second 1 to calculate stdev for initial read
         item_confidence_vals.update({EPC : epc_queue})
         return epc_queue
     else:
         epc_queue = item_confidence_vals.get(EPC)
         
-        #if the queue gets to 60 reads, then resize it.... Probably will have to make this smaller or get the client reading faster!!
+        #May resize this depending on performance
         if(epc_queue.qsize() == 60): 
             
             #Remove the first item in the queue to make space for adding another to the end
@@ -196,36 +199,42 @@ def client_read(EPC, read_val):
 
  #Calculate the number of hits
 def calc_hits(EPC_QUEUE):
-    
-    #Creating a counter for number of hits 
     number_hits = 0
-    temp_queue = EPC_QUEUE
-    while not temp_queue.empty():
-        num_str = temp_queue.get()
-        number_hits += num_str
+    temp_queue = Queue()
     
-    print("Number of hits" + str(number_hits))
-    return number_hits
+    #Loop through each epc read value (0,1) and add it up to calculate the number of hits 
+    for epc in EPC_QUEUE.queue:
+       num_str = epc 
+       temp_queue.put(num_str)
+       number_hits += num_str
+
+    return number_hits, temp_queue
 
 
 
 #Probably a better way to do this that I can't think of...
-def client_calc_confidence(EPC_QUEUE):
-    #Define stuff here for the confidence calculation 
+def client_calc_confidence(EPC_QUEUE, read_val):
     #May have to do something with epc timestamps... Come back to later...
 
-    #Calculate the hit miss ratio
+    #Get the total number of reads, hits and the queue containing the hits/misses 
     num_reads = EPC_QUEUE.qsize()
-    num_hits = calc_hits(EPC_QUEUE)
+    num_hits, EPC_QUEUE = calc_hits(EPC_QUEUE)
+    
+    #Calculate the hit miss ratio
     hit_miss_ratio = num_hits/num_reads
-    print("Hit miss ratio: " + str(hit_miss_ratio))
-    #Get the Z-score value of our ratio
-    z_score=  math.sqrt(2) * math.erf(2 * hit_miss_ratio - 1)
-    print("z-score: " + str(z_score))
+    temp_list = list(EPC_QUEUE.queue)
+
+    #Calculate the Z-Score
+    z_score = (read_val-hit_miss_ratio)/(1 if statistics.stdev(temp_list) == 0 else statistics.stdev(temp_list)) 
+    
+    #Calculate the Margin of Error 
     margin_of_error = z_score*(math.sqrt(hit_miss_ratio*(1-hit_miss_ratio))/num_reads)
-    print("MOE: " + str(margin_of_error))
+    
+    #Calculate the Confidence Interval 
     confidence_interval = [hit_miss_ratio - margin_of_error, hit_miss_ratio + margin_of_error]
     return confidence_interval
+
+
 # Event loop to handle GUI Client/Server Communication
 while True:
     
@@ -467,7 +476,7 @@ while True:
         #For all scanned tags, mark the item as read 
         for item in current_tags:
             epc_q = client_read(item, 1)
-            ci_val = client_calc_confidence(epc_q)#Calculate the confidence value here 
+            ci_val = client_calc_confidence(epc_q, 1)#Calculate the confidence value here 
             epc_ci_list.update({item : ci_val})
         #Find the symmetric difference between the current tags read and all tags that the client has ever read 
         items_not_read = set(current_tags).symmetric_difference(client_epc_list)
@@ -478,12 +487,19 @@ while True:
         #For any items not read, add a value of zero. 
         for item in items_not_read:
             epc_q = client_read(item, 0)
-            ci_val = client_calc_confidence(epc_q) #Calculate the confidence value here 
+            ci_val = client_calc_confidence(epc_q, 0) #Calculate the confidence value here 
             epc_ci_list.update({item : ci_val})
-            
-
-        print("HERE IS THE EPC CI LIST!!!" + str(epc_ci_list))
-
+        
+        #Send the list of EPC CI values to the server
+        if server_status:
+            try:
+                #Constructing payload for the server based on the client (Table, Cabinet)
+                msg ="*" +client_id[0] +"CI"+ str(epc_ci_list) + "Client CI EPC List\n"
+                
+                #Send the payload to the server for the client reads
+                client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
+            except Exception as e:
+                window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
     #Checking if the client is connected to the server
     if server_status:
             #Check if there is anything that was sent from the server
