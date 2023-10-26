@@ -366,7 +366,8 @@ while True:
                 #Should return list of epcs + CI values
                 epcs = handleCIResponse(table_ci_regex)
                 #Eventually may change format of data being sent from client to server... For now just add the epc to the clients dictionary if it isn't there already 
-                table_ci_set.add(epcs)
+                #Need to figure out what to do with EPC's and CI values after reading them in... This should be where the server maybe makes decisions based on CI values + CV..
+                #table_ci_set.add(epcs)
             
             elif data.decode('utf-8') == "Table Reader Connected":
                 window["-EventLog-"].print(f"Connected to Table Reader @ {client_address}")
