@@ -35,13 +35,13 @@ window = sg.Window("Smart Kitchen Application", layout, finalize=True)
 # Event loop
 while True:
     event, values = window.read(timeout=500)
-    
 
-    
+
+
     if event == sg.WINDOW_CLOSED:
         break
     elif event == "Connect":
-        #Connect to reader using usb 
+        #Connect to reader using usb
         reader_port = values["connect-reader"]
         try:
             reader = mercury.Reader(reader_port, baudrate=115200)
@@ -49,12 +49,12 @@ while True:
             reader_status = "disconnected"
             window["-EventLog-"].print(f"Falied to connect to Reader! Please check device URI!\n")
             continue
-        
-        
+
+
         #Printing reader model and region to console
         window["-EventLog-"].print(f"Reader Connected: Model {reader.get_model()}\n")
         window["-EventLog-"].print(f"Supported Regions: {reader.get_supported_regions()}\n")
-        
+
         #Set the reader region and default power
         reader.set_region("NA2")
         reader.set_read_plan([1], "GEN2", read_power=reader_power)
@@ -72,7 +72,7 @@ while True:
         except:
             window["-EventLog-"].print(f"Failed to set reader power!\n")
             continue
-        
+
         window["-EventLog-"].print(f"Reader power set to {reader_power}\n")
     elif event == "Find Item":
         if(reader_status == "disconnected"):
@@ -88,7 +88,7 @@ while True:
                 epc_to_update = epc_list[0].decode("utf-8")
                 window["epc"].update(value=str(epc_to_update), values=epc_list)
                 selected_item = item_dictionary.get(epc_to_update)
-                
+
                 if(selected_item != None):
                     epc_to_update = selected_item
                 window["-EventLog-"].print(f"Selecting item: {epc_to_update}!\n")
@@ -114,45 +114,36 @@ while True:
         window[event].update("Start Reading")
         reading_status = False
 
-    
+
 
     if reading_status:
         #make a read
         current_tags = list(map(lambda t: t.epc, reader.read()))
-    
+
         #combine
         all_tags = current_tags + prev_read
         #remove duplicates
         all_tags = list(set(all_tags))
 
-        
+
         for tag in all_tags:
             if tag in prev_read and tag in current_tags:
-                if tag.decode("utf-8") in item_dictionary:
-                    window["-EventLog-"].print(item_dictionary[tag.decode("utf-8")] + " stayed in field\n")
-                else:
-                    window["-EventLog-"].print(str(tag) + " stayed in field\n")
-                #send to server here  
-            elif tag in prev_read and tag not in current_tags:
-                if tag.decode("utf-8") in item_dictionary:
-                    window["-EventLog-"].print(item_dictionary[tag.decode("utf-8")] + " has left the field\n")
-                else:
-                    window["-EventLog-"].print(str(tag) + " has left field\n")
-                #send to server here             
-            elif tag in current_tags and tag not in prev_read:
-                if tag.decode("utf-8") in item_dictionary:
-                    window["-EventLog-"].print(item_dictionary[tag.decode("utf-8")] + " has entered the field\n")
-                else:
-                    window["-EventLog-"].print(str(tag) + " has entered field\n")
+                window["-EventLog-"].print(str(tag) + " stayed in field\n")
                 #send to server here
-            
-                
-        
+            elif tag in prev_read and tag not in current_tags:
+                window["-EventLog-"].print(str(tag) + " has left field\n")
+                #send to server here
+            elif tag in current_tags and tag not in prev_read:
+                window["-EventLog-"].print(str(tag) + " has entered field\n")
+                #send to server here
+
+
+
         prev_read = current_tags[:]
 
         #time.sleep(1)
 
-    
+
 
 # Close the window
 window.close()
