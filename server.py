@@ -36,8 +36,14 @@ item_dictionary = {}
 #Set of items that the table detects 
 table_set = set()
 
+#Set of items that the table detects with CI values
+table_ci_set = set()
+
 #Set of items that the cabinet detects 
 cabinet_set = set()
+
+#Set of items that the cabinet detects with CI values
+cabinet_ci_set = set()
 
 #List of EPCS that the server found using the Find button
 epcs_to_update = []
@@ -143,6 +149,35 @@ def handleReadResponse(regex):
         window["-EventLog-"].print(f"{data_read}\n")
     
     return None
+
+
+#LEFT OFF ON THIS PART IN CLASS... NEED TO SEE WHAT THE FORMAT LOOKS LIKE ON SERVER THEN CHANGE REGEX TO WORK
+def handleCIResponse(regex): 
+    global window
+    global item_dictionary
+
+    #need to modify this code to work with new regex for the format of the ci values. Forgot what it is so need to test when home 
+
+    #Splitting the response up from the client find command 
+    data_find = regex.group(1)
+    
+    #Grab all EPC values send from client as a response to find command 
+    split_pattern = re.compile(r'.{1,24}')
+
+    #Finding all occurences of 24 byte EPCS in the client response
+    epc_list = split_pattern.findall(data_find)
+    window["-EventLog-"].print(f"Found Items: {epc_list}\n")
+    
+    #Set a default EPC in the dropdown menu 
+    if len(epc_list) > 0:
+        epc_to_update = epc_list[0]
+        window["epc"].update(value=str(epc_to_update), values=epc_list)
+        selected_item = item_dictionary.get(epc_to_update)
+        
+        #Check if the item found was already in the user's inventory
+        if(selected_item != None):
+            epc_to_update = selected_item
+        window["-EventLog-"].print(f"Selecting item: {epc_to_update}\n")
 
 # Event loop to handle GUI Client/Server Communication
 while True:
@@ -319,20 +354,30 @@ while True:
             #CRR denotes a Cabinet Reader Read packet
             cabinet_read_regex = re.match(r'.*CRR(.*)', data.decode('utf-8')) 
 
+            #TCI denotes a Table reader confidence interval list
+            table_ci_regex = re.match(r'.*TCI(.*)', data.decode('utf-8'))
+
+            #CCI denotes a Cabinet reader confidence interval list
+            cabinet_ci_regex = re.match(r'.*CCI(.*)', data.decode('utf-8'))
+
             if(table_find_regex):
                 epc = handleFindResponse(table_find_regex)
             elif(table_read_regex):
                 epc = handleReadResponse(table_read_regex)
-            
                 #Eventually may change format of data being sent from client to server... For now just add the epc to the clients dictionary if it isn't there already 
                 table_set.add(epc)
             elif(cabinet_find_regex):
                 epc = handleFindResponse(cabinet_find_regex)
             elif(cabinet_read_regex):
                 epc = handleReadResponse(cabinet_read_regex)
-
                 #Eventually may change format of data being sent from client to server... For now just add the epc to the clients dictionary if it isn't there already 
                 cabinet_set.add(epc)
+            elif(cabinet_ci_regex):
+                #Should return list of epcs + CI values
+                epcs = handleCIResponse(cabinet_ci_regex)
+                #Eventually may change format of data being sent from client to server... For now just add the epc to the clients dictionary if it isn't there already 
+                cabinet_ci_set.add(epcs)
+            
             elif data.decode('utf-8') == "Table Reader Connected":
                 window["-EventLog-"].print(f"Connected to Table Reader @ {client_address}")
                 

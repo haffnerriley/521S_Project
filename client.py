@@ -239,7 +239,7 @@ def client_calc_confidence(EPC_QUEUE, read_val):
 while True:
     
     #Can change the timeout if we want to have a faster UI
-    event, values = window.read(timeout=500)
+    event, values = window.read(timeout=250) #Changed from 500
 
     #Close the client socket if exit button pressed and client socket still open
     if event == sg.WINDOW_CLOSED:
@@ -414,7 +414,7 @@ while True:
     #Main client GUI reading loop that is also used by the server read command
     if reading_status:
         #make a read
-        current_tags = list(map(lambda t: t.epc, reader.read()))
+        current_tags = list(map(lambda t: t.epc, reader.read())) #Play around with the read rate to get more samples. Or shorten the window/queue
        
         print(current_tags)
         #Need to update all tags that have ever been scanned and make queue have zeros if not in the set of current tags 
