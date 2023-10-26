@@ -494,7 +494,7 @@ while True:
         if server_status:
             try:
                 #Constructing payload for the server based on the client (Table, Cabinet)
-                msg ="*" +client_id[0] +"CI"+ str(epc_ci_list) + "Client CI EPC List\n"
+                msg ="*" +client_id[0] +"CI*"+ str(epc_ci_list) +'\n'
                 
                 #Send the payload to the server for the client reads
                 client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)

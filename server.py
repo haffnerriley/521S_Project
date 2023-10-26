@@ -151,33 +151,23 @@ def handleReadResponse(regex):
     return None
 
 
-#LEFT OFF ON THIS PART IN CLASS... NEED TO SEE WHAT THE FORMAT LOOKS LIKE ON SERVER THEN CHANGE REGEX TO WORK
+#Handles the confidence intervals sent from the clients
 def handleCIResponse(regex): 
     global window
     global item_dictionary
-
-    #need to modify this code to work with new regex for the format of the ci values. Forgot what it is so need to test when home 
-
-    #Splitting the response up from the client find command 
-    data_find = regex.group(1)
     
-    #Grab all EPC values send from client as a response to find command 
-    split_pattern = re.compile(r'.{1,24}')
-
-    #Finding all occurences of 24 byte EPCS in the client response
-    epc_list = split_pattern.findall(data_find)
-    window["-EventLog-"].print(f"Found Items: {epc_list}\n")
+    #Extract all values after the initial three characters marking the type of packet
+    data_ci = regex.group(1)
     
-    #Set a default EPC in the dropdown menu 
-    if len(epc_list) > 0:
-        epc_to_update = epc_list[0]
-        window["epc"].update(value=str(epc_to_update), values=epc_list)
-        selected_item = item_dictionary.get(epc_to_update)
-        
-        #Check if the item found was already in the user's inventory
-        if(selected_item != None):
-            epc_to_update = selected_item
-        window["-EventLog-"].print(f"Selecting item: {epc_to_update}\n")
+    #Grab all EPC values and confidence intervals 
+    split_pattern = re.compile(r"b'([0-9A-Fa-f]{24})': \[([0-9.]+), ([0-9.]+)\]")
+    
+    #Grabbing all EPC's and confidence intervals
+    epc__ci_list = split_pattern.findall(data_ci)
+    print(epc__ci_list)
+
+
+    
 
 # Event loop to handle GUI Client/Server Communication
 while True:
@@ -372,11 +362,11 @@ while True:
                 epc = handleReadResponse(cabinet_read_regex)
                 #Eventually may change format of data being sent from client to server... For now just add the epc to the clients dictionary if it isn't there already 
                 cabinet_set.add(epc)
-            elif(cabinet_ci_regex):
+            elif(table_ci_regex):
                 #Should return list of epcs + CI values
-                epcs = handleCIResponse(cabinet_ci_regex)
+                epcs = handleCIResponse(table_ci_regex)
                 #Eventually may change format of data being sent from client to server... For now just add the epc to the clients dictionary if it isn't there already 
-                cabinet_ci_set.add(epcs)
+                table_ci_set.add(epcs)
             
             elif data.decode('utf-8') == "Table Reader Connected":
                 window["-EventLog-"].print(f"Connected to Table Reader @ {client_address}")
