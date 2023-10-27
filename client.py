@@ -185,7 +185,7 @@ def client_read(EPC, read_val):
         epc_queue = item_confidence_vals.get(EPC)
         
         #May resize this depending on performance
-        if(epc_queue.qsize() == 60): 
+        if(epc_queue.qsize() == 25): 
             
             #Remove the first item in the queue to make space for adding another to the end
             epc_queue.get() 
@@ -239,7 +239,7 @@ def client_calc_confidence(EPC_QUEUE, read_val):
 while True:
     
     #Can change the timeout if we want to have a faster UI
-    event, values = window.read(timeout=250) #Changed from 500
+    event, values = window.read(timeout=100) #Changed from 500
 
     #Close the client socket if exit button pressed and client socket still open
     if event == sg.WINDOW_CLOSED:
@@ -416,7 +416,7 @@ while True:
         #make a read
         current_tags = list(map(lambda t: t.epc, reader.read())) #Play around with the read rate to get more samples. Or shorten the window/queue
        
-        print(current_tags)
+        #print(current_tags)
         #Need to update all tags that have ever been scanned and make queue have zeros if not in the set of current tags 
 
        
@@ -437,7 +437,7 @@ while True:
                         msg ="*" +client_id[0] +"RR"+ tag.decode("utf-8") + " stayed in field\n"
                         
                         #Send the payload to the server for the client reads
-                        client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
+                        #client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
                     except Exception as e:
                         window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
             #Handles logic for tags that have left the field
@@ -450,7 +450,7 @@ while True:
                         msg ="*" +client_id[0] +"RR"+ tag.decode("utf-8") + " has left field\n"
                         
                         #Send the payload to the server for the client reads
-                        client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
+                        #client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
                     except Exception as e:
                         window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
             #Handles logic for tags that have entered the field         
@@ -463,7 +463,7 @@ while True:
                         msg ="*" +client_id[0] +"RR"+ tag.decode("utf-8") + " has entered field\n"
                         
                         #Send the payload to the server for the client reads
-                        client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
+                        #client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
                     except Exception as e:
                         window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
             

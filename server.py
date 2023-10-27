@@ -173,7 +173,7 @@ def handleCIResponse(regex):
 while True:
     
     #Can change the timeout if we want to have a faster UI
-    event, values = window.read(timeout=500)
+    event, values = window.read(timeout=250)
     
     #Close the server socket if exit button pressed and server socket still open
     if event == sg.WINDOW_CLOSED:
