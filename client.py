@@ -228,7 +228,7 @@ def client_calc_confidence(EPC_QUEUE, read_val):
     z_score = (read_val-hit_miss_ratio)/(1 if statistics.stdev(temp_list) == 0 else statistics.stdev(temp_list)) 
     
     #Calculate the Margin of Error 
-    margin_of_error = z_score*(math.sqrt(hit_miss_ratio*(1-hit_miss_ratio))/num_reads)
+    margin_of_error = abs(z_score*(math.sqrt(hit_miss_ratio*(1-hit_miss_ratio))/num_reads))
     
     #Calculate the Confidence Interval 
     confidence_interval = [hit_miss_ratio - margin_of_error, hit_miss_ratio + margin_of_error]
