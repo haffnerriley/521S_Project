@@ -160,11 +160,11 @@ def handleCIResponse(regex):
     data_ci = regex.group(1)
     
     #Grab all EPC values and confidence intervals 
-    split_pattern = re.compile(r"b'([0-9A-Fa-f]{24})': \[([0-9.]+), ([0-9.]+)\]")
+    split_pattern = re.compile(r"b'([0-9A-Fa-f]{24})': \[([0-9.]+), ([0-9.]+), ([0-9.]+)\]")
     
     #Grabbing all EPC's and confidence intervals
-    epc__ci_list = split_pattern.findall(data_ci)
-    print(epc__ci_list)
+    epc_ci_list = split_pattern.findall(data_ci)
+    window["-EventLog-"].print(f"{epc_ci_list}\n")
 
 
     

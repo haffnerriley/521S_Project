@@ -28,6 +28,9 @@ epc_to_update = "None"
 #Dictionary of items that the server maintains 
 item_dictionary = {}
 
+#Dictionary of items and the last time it was read 
+item_read_times = {}
+
 #List of EPCS that the server found using the Find button
 epcs_to_update = []
 
@@ -170,7 +173,8 @@ def clientFind():
 def client_read(EPC, read_val):
     global item_confidence_vals
     global client_epc_list
-    
+    global item_read_times
+
     #If the item is being read for the first time add it to the dictionary and create a new entry for it
     if(item_confidence_vals.get(EPC) == None):
         
@@ -180,6 +184,7 @@ def client_read(EPC, read_val):
         epc_queue.put(1)
         epc_queue.put(1) #Adding a second 1 to calculate stdev for initial read
         item_confidence_vals.update({EPC : epc_queue})
+        item_read_times.update({EPC : time.time()})
         return epc_queue
     else:
         epc_queue = item_confidence_vals.get(EPC)
@@ -195,6 +200,9 @@ def client_read(EPC, read_val):
             epc_queue.put(read_val)
         
         item_confidence_vals.update({EPC : epc_queue})
+        if(read_val == 1):
+            item_read_times.update({EPC : time.time()})
+        
         return epc_queue
 
  #Calculate the number of hits
@@ -213,7 +221,8 @@ def calc_hits(EPC_QUEUE):
 
 
 #Probably a better way to do this that I can't think of...
-def client_calc_confidence(EPC_QUEUE, read_val):
+def client_calc_confidence(EPC_QUEUE, read_val, EPC):
+    global item_read_times
     #May have to do something with epc timestamps... Come back to later...
 
     #Get the total number of reads, hits and the queue containing the hits/misses 
@@ -230,8 +239,11 @@ def client_calc_confidence(EPC_QUEUE, read_val):
     #Calculate the Margin of Error 
     margin_of_error = abs(z_score*(math.sqrt(hit_miss_ratio*(1-hit_miss_ratio))/num_reads))
     
-    #Calculate the Confidence Interval 
-    confidence_interval = [hit_miss_ratio - margin_of_error, hit_miss_ratio + margin_of_error]
+    #Get the time since this item was read 
+    time_since_read = time.time() - item_read_times.get(EPC)
+    
+    #Calculate the Confidence Interval and include the last time the item was read 
+    confidence_interval = [hit_miss_ratio - margin_of_error, hit_miss_ratio + margin_of_error, time_since_read]
     return confidence_interval
 
 
@@ -476,7 +488,7 @@ while True:
         #For all scanned tags, mark the item as read 
         for item in current_tags:
             epc_q = client_read(item, 1)
-            ci_val = client_calc_confidence(epc_q, 1)#Calculate the confidence value here 
+            ci_val = client_calc_confidence(epc_q, 1, item)#Calculate the confidence value here 
             epc_ci_list.update({item : ci_val})
         #Find the symmetric difference between the current tags read and all tags that the client has ever read 
         items_not_read = set(current_tags).symmetric_difference(client_epc_list)
@@ -487,7 +499,7 @@ while True:
         #For any items not read, add a value of zero. 
         for item in items_not_read:
             epc_q = client_read(item, 0)
-            ci_val = client_calc_confidence(epc_q, 0) #Calculate the confidence value here 
+            ci_val = client_calc_confidence(epc_q, 0, item) #Calculate the confidence value here 
             epc_ci_list.update({item : ci_val})
         
         #Send the list of EPC CI values to the server
