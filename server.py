@@ -9,6 +9,10 @@ import threading
 import requests
 from netifaces import interfaces, ifaddresses, AF_INET
 import re
+import numpy as np
+
+#connect to the shared memory segment
+shm = shared_memory.SharedMemory(name="shmemseg", create=False, size=np.zeros(3, dtype=np.float64).nbytes)
 
 #Initializing global vars
 ipaddr = None
