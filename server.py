@@ -11,13 +11,18 @@ import re
 import numpy as np
 from multiprocessing import shared_memory
 
+#Initializing global vars
+
 #Shared memory region
 shm = None 
 
 #Tracks if shared memory region is open or not 
 region_bool = False
 
-#Initializing global vars
+#Keeps track of the last read from the CV shared memory region
+cv_timer = 0
+
+#Keeps track of ip address 
 ipaddr = None
 
 # Configure the server address and port
@@ -132,6 +137,7 @@ def handleFindResponse(regex):
 def connectCV():
     global shm
     global region_bool
+    global cv_timer
 
     if region_bool:
        shm.close()
@@ -139,6 +145,7 @@ def connectCV():
     else:
         shm = shared_memory.SharedMemory(name="shmemseg", create=False, size=np.zeros(3, dtype=np.float64).nbytes)
         region_bool = not region_bool
+        cv_timer = 0
 
 def handleReadResponse(regex): 
     global window
@@ -352,6 +359,17 @@ while True:
         server_read_status = False
     
     #Main logic to handle Client Server data exchange
+
+    if region_bool:
+        if cv_timer == 0:
+            cv_timer = time.time()
+            c = np.ndarray((3,), dtype=np.float64, buffer=existing_shm.buf)
+            window["-EventLog-"].print(f"CV values: {c}\n")
+        elif time.time() - cv_timer > 1:
+            cv_timer = 0
+            c = np.ndarray((3,), dtype=np.float64, buffer=existing_shm.buf)
+            window["-EventLog-"].print(f"CV values: {c}\n")
+        
     if server_status:
         
         #Read from the clients
