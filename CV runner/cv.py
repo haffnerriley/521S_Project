@@ -84,7 +84,6 @@ while True:
                 print("Found ", classname, " with confidence of ", confidence)
             
     #push to shared memory buffer
-    print(items)
     if counter == 10:
 
         #push average confidence
@@ -94,6 +93,9 @@ while True:
         #reset local segment
         items = np.array([0.0, 0.0, 0.0])
         counter = 0
+
+        #display for testing
+        print(items)
 
 #close the memory segment
 shm.close()
