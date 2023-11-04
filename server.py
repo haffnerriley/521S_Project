@@ -15,7 +15,7 @@ import numpy as np
 shm = shared_memory.SharedMemory(name="shmemseg", create=False, size=np.zeros(3, dtype=np.float64).nbytes)
 
 #example for how to access memory
-c = np.ndarray((3,), dtype=np.float64, buffer=existing_shm.buf)
+c = np.ndarray((3,), dtype=np.float64, buffer=shm.buf)
 
 #Initializing global vars
 ipaddr = None
