@@ -3,12 +3,12 @@ from __future__ import print_function
 import PySimpleGUI as sg
 import time
 from datetime import datetime
-import mercury
 import socket
 import threading
 import requests
 from netifaces import interfaces, ifaddresses, AF_INET
 import re
+from multiprocessing import shared_memory
 import numpy as np
 
 #connect to the shared memory segment
