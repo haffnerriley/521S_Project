@@ -8,6 +8,14 @@ import threading
 import requests
 from netifaces import interfaces, ifaddresses, AF_INET
 import re
+import numpy as np
+from multiprocessing import shared_memory
+
+#Shared memory region
+shm = None 
+
+#Tracks if shared memory region is open or not 
+region_bool = False
 
 #Initializing global vars
 ipaddr = None
@@ -71,7 +79,7 @@ layout = [
     [sg.Text("Set Read Power (0-2700):"), sg.InputText(key="reader-power"), sg.Combo(connected_readers, default_value=selected_reader, key="cur-reader",size=(25,1), enable_events=True)],
     [sg.Text("EPC to Update:"), sg.Combo(epcs_to_update, default_value=epc_to_update, key="epc",size=(25,1), enable_events=True)],
     [sg.Text("New Item Name:"), sg.InputText(key="item-name")],
-    [sg.Button("Set Power"), sg.Button("Find Item"), sg.Button("Update Item"), sg.Button("Start Server", key="server-btn"), sg.Button("Start Reading", key="server-read")],
+    [sg.Button("Connect CV", key="cv-btn"), sg.Button("Set Power"), sg.Button("Find Item"), sg.Button("Update Item"), sg.Button("Start Server", key="server-btn"), sg.Button("Start Reading", key="server-read")],
     [sg.Multiline("", size=(50, 10), key="-EventLog-", disabled=True)]
 ]
 
@@ -120,6 +128,17 @@ def handleFindResponse(regex):
             epc_to_update = selected_item
         window["-EventLog-"].print(f"Selecting item: {epc_to_update}\n")
 
+#Function that handles connecting to the shared memory region 
+def connectCV():
+    global shm
+    global region_bool
+
+    if region_bool:
+       shm.close()
+       region_bool = not region_bool
+    else:
+        shm = shared_memory.SharedMemory(name="shmemseg", create=False, size=np.zeros(3, dtype=np.float64).nbytes)
+        region_bool = not region_bool
 
 def handleReadResponse(regex): 
     global window
@@ -284,6 +303,13 @@ while True:
         #Close the socket for the server and update server status boolean
         server_socket.close()
         server_status = False
+    #Handles connecting to the shared memory region
+    elif event == "cv-btn" and region_bool == False:
+        connectCV()
+        window[event].update("Disconnect CV")
+    elif event == "cv-btn" and region_bool:
+        connectCV()
+        window[event].update("Connect CV")
     #Requests that all connected clients start reading and pushing data to the server
     elif event == "server-read" and server_read_status == False:
         
