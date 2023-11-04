@@ -18,6 +18,12 @@ epcs_to_update = []
 prev_read = []
 reading_status = False
 
+#connect to the shared memory segment
+shm = shared_memory.SharedMemory(name="shmemseg", create=False, size=np.zeros(3, dtype=np.float64).nbytes)
+
+#example for how to access memory
+c = np.ndarray((3,), dtype=np.float64, buffer=existing_shm.buf)
+
 # Define the GUI layout
 layout = [
     [sg.Text("Device URI:"), sg.InputText("tmr:///dev/ttyUSB0", key="connect-reader")],
