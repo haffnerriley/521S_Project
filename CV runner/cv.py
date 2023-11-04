@@ -6,6 +6,9 @@ import requests
 import cv2
 from matplotlib import pyplot as plt
 import os
+from multiprocessing import shared_memory
+import numpy as np
+import copy
   
 # Opening image
 video_capture_device_index = 0
@@ -17,6 +20,17 @@ webcam.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
 #loading a given model
 model = YOLO("yolov8x.pt")
+
+#shared memory local segment to update and push
+#each index is an item
+#spoon -> 0
+#bowl -> 1
+#cup -> 2
+items = np.array([100.0, 100.0, 100.0])
+counter = 1
+
+#open shared memory segment
+shm = shared_memory.SharedMemory(name="shmemseg", create=True, size=items.nbytes)
 
 #main loop
 while True:
@@ -33,6 +47,9 @@ while True:
 
     #use yolo to detect
     outputs = model.predict(pil_image)
+
+    #counter update
+    counter += 1
 
     #Scalable for multiple images to be processed at the same time (AKA more cameras = more better)
     os.system('clear')
@@ -54,4 +71,30 @@ while True:
 
             #print for now, replace later with comparison
             if confidence > .4:
+                
+                #update local shmem mirror
+                match classname:
+                    case "spoon":
+                        items[0] += confidence
+                    case "bowl":
+                        items[1] += confidence
+                    case "cup":
+                        items[2] += confidence
+
                 print("Found ", classname, " with confidence of ", confidence)
+            
+    #push to shared memory buffer
+    print(items)
+    if counter == 10:
+
+        #push average confidence
+        buffer = np.ndarray(items.shape, dtype=items.dtype, buffer=shm.buf)
+        buffer[:] = items[:]/counter   
+
+        #reset local segment
+        items = np.array([0.0, 0.0, 0.0])
+        counter = 0
+
+#close the memory segment
+shm.close()
+shm.unlink()
