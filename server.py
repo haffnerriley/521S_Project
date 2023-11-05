@@ -363,11 +363,11 @@ while True:
     if region_bool:
         if cv_timer == 0:
             cv_timer = time.time()
-            c = np.ndarray((3,), dtype=np.float64, buffer=existing_shm.buf)
+            c = np.ndarray((3,), dtype=np.float64, buffer=shm.buf)
             window["-EventLog-"].print(f"CV values: {c}\n")
         elif time.time() - cv_timer > 1:
             cv_timer = 0
-            c = np.ndarray((3,), dtype=np.float64, buffer=existing_shm.buf)
+            c = np.ndarray((3,), dtype=np.float64, buffer=shm.buf)
             window["-EventLog-"].print(f"CV values: {c}\n")
         
     if server_status:
