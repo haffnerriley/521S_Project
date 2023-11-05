@@ -13,6 +13,13 @@ from multiprocessing import shared_memory
 
 #Initializing global vars
 
+#Storing the reader turn
+table_read = False
+cabinet_read = False
+
+#Variable that stores CI values from both readers 
+client_ci_list = {}
+
 #Shared memory region
 shm = None 
 
@@ -180,7 +187,6 @@ def handleReadResponse(regex):
 #Handles the confidence intervals sent from the clients
 def handleCIResponse(regex): 
     global window
-    global item_dictionary
     
     #Extract all values after the initial three characters marking the type of packet
     data_ci = regex.group(1)
@@ -189,11 +195,17 @@ def handleCIResponse(regex):
     split_pattern = re.compile(r"b'([0-9A-Fa-f]{24})': \[([0-9.]+), ([0-9.]+), ([0-9.]+)\]")
     
     #Grabbing all EPC's and confidence intervals
+    #This is a list with arrays of EPCs and their CI values and last read time in seconds with the format [EPC,lower_conf_val, upper_conf_val, last_read_time]
     epc_ci_list = split_pattern.findall(data_ci)
     window["-EventLog-"].print(f"{epc_ci_list}\n")
+    return epc_ci_list
 
-
+#Function to ultimately compare the RFID values/average them out
+def compareRfidCi():
+    global client_ci_list
     
+
+
 
 # Event loop to handle GUI Client/Server Communication
 while True:
@@ -412,15 +424,19 @@ while True:
                 epc = handleReadResponse(cabinet_read_regex)
                 #Eventually may change format of data being sent from client to server... For now just add the epc to the clients dictionary if it isn't there already 
                 cabinet_set.add(epc)
-            elif(table_ci_regex):
+            elif(table_ci_regex and not table_read):
                 #Should return list of epcs + CI values
                 epcs = handleCIResponse(table_ci_regex)
+                client_ci_list.update({'Table' : epcs})
+                table_read = True
                 #Eventually may change format of data being sent from client to server... For now just add the epc to the clients dictionary if it isn't there already 
                 #Need to figure out what to do with EPC's and CI values after reading them in... This should be where the server maybe makes decisions based on CI values + CV..
                 #table_ci_set.add(epcs)
-            elif(cabinet_ci_regex):
+            elif(cabinet_ci_regex and not cabinet_read):
                 #Should return list of epcs + CI values
                 epcs = handleCIResponse(cabinet_ci_regex)
+                client_ci_list.update({'Cabinet' : epcs})
+                cabinet_read = True
             elif data.decode('utf-8') == "Table Reader Connected":
                 window["-EventLog-"].print(f"Connected to Table Reader @ {client_address}")
                 
@@ -464,8 +480,17 @@ while True:
                 window["-EventLog-"].print(f"Client says: {data.decode('utf-8')}") 
         except:
             continue
-
         
+        #Checking if we have CI values from both clients 
+        if table_read and cabinet_read:
+            table_read = not table_read
+            cabinet_read = not cabinet_read
+
+            #Function to compare CI values of clients 
+            compareRfidCi()
+            
+            #Clearing the last two client RFID reads
+            client_ci_list = {}
 
     
 
