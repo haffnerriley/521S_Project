@@ -37,6 +37,8 @@ epcs_to_update = []
 #Previous RFID reads 
 prev_read = []
 
+#Previously read item for CI buffer clear 
+prev_item_read = None
 #Dictionary of EPC's, the read count, time-stamp, and other data stored here for client algo
 item_confidence_vals = {}
 
@@ -174,7 +176,8 @@ def client_read(EPC, read_val):
     global item_confidence_vals
     global client_epc_list
     global item_read_times
-
+    global prev_item_read
+   
     #If the item is being read for the first time add it to the dictionary and create a new entry for it
     if(item_confidence_vals.get(EPC) == None):
         
@@ -185,15 +188,19 @@ def client_read(EPC, read_val):
         epc_queue.put(1) #Adding a second 1 to calculate stdev for initial read
         item_confidence_vals.update({EPC : epc_queue})
         item_read_times.update({EPC : time.time()})
+        prev_item_read = 1
         return epc_queue
     else:
         epc_queue = item_confidence_vals.get(EPC)
         
         #May resize this depending on performance
         if(epc_queue.qsize() == 25): 
-            
-            #Remove the first item in the queue to make space for adding another to the end
-            epc_queue.get() 
+             
+            #Clearing the entire queue to address CI problem
+            epc_queue = Queue()
+
+            #Adding the last state read for this item to avoid divide by zero errors in CI calculation
+            epc_queue.put(prev_item_read)
             epc_queue.put(read_val)
             
         else:
@@ -203,6 +210,7 @@ def client_read(EPC, read_val):
         if(read_val == 1):
             item_read_times.update({EPC : time.time()})
         
+        prev_item_read = read_val
         return epc_queue
 
  #Calculate the number of hits

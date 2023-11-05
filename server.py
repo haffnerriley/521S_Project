@@ -289,19 +289,22 @@ while True:
     elif event == "server-btn" and server_status == False:
         
         #Get the address of the computer the server is running on 
-        findIP()
+        try:
+            findIP()
 
-        #Create a socket for the server to accept connections on
-        server_socket= socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        server_socket.bind(server_address)
-        server_socket.settimeout(0.5)
+            #Create a socket for the server to accept connections on
+            server_socket= socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            server_socket.bind(server_address)
+            server_socket.settimeout(0.5)
         
-        #Setting the server status to True to track status
-        server_status = True
-        window["-EventLog-"].print(f"RFID Server listening on {server_address}")
+            #Setting the server status to True to track status
+            server_status = True
+            window["-EventLog-"].print(f"RFID Server listening on {server_address}")
 
-        #Update the Start server button to Stop Server
-        window[event].update("Stop Server")
+            #Update the Start server button to Stop Server
+            window[event].update("Stop Server")
+        except Exception as e:
+            window["-EventLog-"].print(f"Failed to start server with error: {str(e)}")
     #Stops the server
     elif event == "server-btn" and server_status:
         #Update the server button 
@@ -312,8 +315,11 @@ while True:
         server_status = False
     #Handles connecting to the shared memory region
     elif event == "cv-btn" and region_bool == False:
-        connectCV()
-        window[event].update("Disconnect CV")
+        try:
+            connectCV()
+            window[event].update("Disconnect CV")
+        except Exception as e:
+           window["-EventLog-"].print(f"Please start CV program first!: {str(e)}\n") 
     elif event == "cv-btn" and region_bool:
         connectCV()
         window[event].update("Connect CV")
@@ -412,7 +418,9 @@ while True:
                 #Eventually may change format of data being sent from client to server... For now just add the epc to the clients dictionary if it isn't there already 
                 #Need to figure out what to do with EPC's and CI values after reading them in... This should be where the server maybe makes decisions based on CI values + CV..
                 #table_ci_set.add(epcs)
-            
+            elif(cabinet_ci_regex):
+                #Should return list of epcs + CI values
+                epcs = handleCIResponse(cabinet_ci_regex)
             elif data.decode('utf-8') == "Table Reader Connected":
                 window["-EventLog-"].print(f"Connected to Table Reader @ {client_address}")
                 
