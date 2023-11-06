@@ -40,69 +40,76 @@ if pid > 0 :
     model = YOLO("yolov8x.pt")
 
     #main loop
-    while True:
+    try:
+        while True:
 
-        #sleep
-        time.sleep(1)
+            #sleep
+            time.sleep(1)
 
-        #grab frame from shared memory
-        current_frame_grabbed = np.ndarray(current_frame.shape, dtype=current_frame.dtype, buffer=shm_cam.buf)
-        pil_image = Image.fromarray(current_frame_grabbed)
+            #grab frame from shared memory
+            current_frame_grabbed = np.ndarray(current_frame.shape, dtype=current_frame.dtype, buffer=shm_cam.buf)
+            pil_image = Image.fromarray(current_frame_grabbed)
 
-        #use yolo to detect
-        outputs = model.predict(pil_image)
+            #use yolo to detect
+            outputs = model.predict(pil_image)
 
-        #Scalable for multiple images to be processed at the same time (AKA more cameras = more better)
-        os.system('clear')
-        for output in outputs:
+            #Scalable for multiple images to be processed at the same time (AKA more cameras = more better)
+            os.system('clear')
+            for output in outputs:
 
-            #get boxes
-            for box in output.boxes:
+                #get boxes
+                for box in output.boxes:
 
-                #cheating the poison classes
-                if output.names[box.cls[0].item()] == "sink":
-                    continue
+                    #cheating the poison classes
+                    if output.names[box.cls[0].item()] == "sink":
+                        continue
 
-                #final score for comparison
-                item_label = box.cls[0].item()
-                confidence = box.conf[0].item()
+                    #final score for comparison
+                    item_label = box.cls[0].item()
+                    confidence = box.conf[0].item()
 
-                #Only for coco trained things
-                classname = output.names[item_label]
+                    #Only for coco trained things
+                    classname = output.names[item_label]
 
-                #print for now, replace later with comparison
-                if confidence > .4:
+                    #print for now, replace later with comparison
+                    if confidence > .4:
+                        
+                        #update local shmem mirror
+                        match classname:
+                            case "spoon":
+                                items[0] += confidence
+                            case "bowl":
+                                items[1] += confidence
+                            case "cup":
+                                items[2] += confidence
+
+                        print("Found ", classname, " with confidence of ", confidence)
                     
-                    #update local shmem mirror
-                    match classname:
-                        case "spoon":
-                            items[0] += confidence
-                        case "bowl":
-                            items[1] += confidence
-                        case "cup":
-                            items[2] += confidence
+            #push to shared memory buffer
+            if counter == 1:
 
-                    print("Found ", classname, " with confidence of ", confidence)
-                
-        #push to shared memory buffer
-        if counter == 1:
+                #push average confidence
+                buffer = np.ndarray(items.shape, dtype=items.dtype, buffer=shm_server.buf)
+                buffer[:] = items[:]/counter  
 
-            #push average confidence
-            buffer = np.ndarray(items.shape, dtype=items.dtype, buffer=shm_server.buf)
-            buffer[:] = items[:]/counter  
+                #display for testing
+                print(buffer) 
 
-            #display for testing
-            print(buffer) 
+                #reset local segment
+                items = np.array([0.0, 0.0, 0.0])
+                counter = 1
 
-            #reset local segment
-            items = np.array([0.0, 0.0, 0.0])
-            counter = 1
+    #close the memory segment on cntrl c
+    except KeyboardInterrupt:
 
-    #close the memory segment
-    shm_server.close()
-    shm_cam.close()
-    shm_server.unlink()
-    shm_cam.unlink()
+        print("cleaning shared memory....")
+        shm_server.close()
+        shm_cam.close()
+        shm_server.unlink()
+        shm_cam.unlink()
+
+        print("exiting..")
+        exit(0)
 
 else:
 
