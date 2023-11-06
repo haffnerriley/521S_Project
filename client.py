@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from __future__ import print_function
+from queue import Queue
 import PySimpleGUI as sg
 import socket
 import time
@@ -8,6 +9,9 @@ import mercury
 import select
 import re
 import json
+import math
+from collections import deque
+import statistics
 
 #RFID reader object
 reader = "undefined"
@@ -24,11 +28,19 @@ epc_to_update = "None"
 #Dictionary of items that the server maintains 
 item_dictionary = {}
 
+#Dictionary of items and the last time it was read 
+item_read_times = {}
+
 #List of EPCS that the server found using the Find button
 epcs_to_update = []
 
 #Previous RFID reads 
 prev_read = []
+
+#Previously read item for CI buffer clear 
+prev_item_read = None
+#Dictionary of EPC's, the read count, time-stamp, and other data stored here for client algo
+item_confidence_vals = {}
 
 #Checks if the server requested the client to read
 reading_status = False
@@ -48,6 +60,8 @@ client_msg = None
 #Client identifier (Table, Cabinet)
 client_id = None
 
+#List of all EPC's the client has ever read 
+client_epc_list = []
 
 # Define the GUI layout
 layout = [
@@ -157,13 +171,95 @@ def clientFind():
         client_socket.sendto(b'Failed to start reading!', server_address)
         return
 
+#Handles the queus that each EPC has associated with it for caluclating the hit/miss ratio. The read value should be 1 if a hit 0 if a miss
+def client_read(EPC, read_val):
+    global item_confidence_vals
+    global client_epc_list
+    global item_read_times
+    global prev_item_read
+   
+    #If the item is being read for the first time add it to the dictionary and create a new entry for it
+    if(item_confidence_vals.get(EPC) == None):
+        
+        #Add the new epc to the client list to use for updating each queue 
+        client_epc_list.append(EPC) 
+        epc_queue = Queue()
+        epc_queue.put(1)
+        epc_queue.put(1) #Adding a second 1 to calculate stdev for initial read
+        item_confidence_vals.update({EPC : epc_queue})
+        item_read_times.update({EPC : time.time()})
+        prev_item_read = 1
+        return epc_queue
+    else:
+        epc_queue = item_confidence_vals.get(EPC)
+        
+        #May resize this depending on performance
+        if(epc_queue.qsize() == 25): 
+             
+            #Clearing the entire queue to address CI problem
+            epc_queue = Queue()
+
+            #Adding the last state read for this item to avoid divide by zero errors in CI calculation
+            epc_queue.put(prev_item_read)
+            epc_queue.put(read_val)
+            
+        else:
+            epc_queue.put(read_val)
+        
+        item_confidence_vals.update({EPC : epc_queue})
+        if(read_val == 1):
+            item_read_times.update({EPC : time.time()})
+        
+        prev_item_read = read_val
+        return epc_queue
+
+ #Calculate the number of hits
+def calc_hits(EPC_QUEUE):
+    number_hits = 0
+    temp_queue = Queue()
+    
+    #Loop through each epc read value (0,1) and add it up to calculate the number of hits 
+    for epc in EPC_QUEUE.queue:
+       num_str = epc 
+       temp_queue.put(num_str)
+       number_hits += num_str
+
+    return number_hits, temp_queue
+
+
+
+#Probably a better way to do this that I can't think of...
+def client_calc_confidence(EPC_QUEUE, read_val, EPC):
+    global item_read_times
+    #May have to do something with epc timestamps... Come back to later...
+
+    #Get the total number of reads, hits and the queue containing the hits/misses 
+    num_reads = EPC_QUEUE.qsize()
+    num_hits, EPC_QUEUE = calc_hits(EPC_QUEUE)
+    
+    #Calculate the hit miss ratio
+    hit_miss_ratio = num_hits/num_reads
+    temp_list = list(EPC_QUEUE.queue)
+
+    #Calculate the Z-Score
+    z_score = (read_val-hit_miss_ratio)/(1 if statistics.stdev(temp_list) == 0 else statistics.stdev(temp_list)) 
+    
+    #Calculate the Margin of Error 
+    margin_of_error = abs(z_score*(math.sqrt(hit_miss_ratio*(1-hit_miss_ratio))/num_reads))
+    
+    #Get the time since this item was read 
+    time_since_read = time.time() - item_read_times.get(EPC)
+    
+    #Calculate the Confidence Interval and include the last time the item was read 
+    confidence_interval = [hit_miss_ratio - margin_of_error, hit_miss_ratio + margin_of_error, time_since_read]
+    return confidence_interval
 
 
 # Event loop to handle GUI Client/Server Communication
 while True:
     
     #Can change the timeout if we want to have a faster UI
-    event, values = window.read(timeout=500)
+    event, values = window.read(timeout=100) #Changed from 500
 
     #Close the client socket if exit button pressed and client socket still open
     if event == sg.WINDOW_CLOSED:
@@ -338,8 +434,12 @@ while True:
     #Main client GUI reading loop that is also used by the server read command
     if reading_status:
         #make a read
-        current_tags = list(map(lambda t: t.epc, reader.read()))
-    
+        current_tags = list(map(lambda t: t.epc, reader.read())) #Play around with the read rate to get more samples. Or shorten the window/queue
+       
+        #print(current_tags)
+        #Need to update all tags that have ever been scanned and make queue have zeros if not in the set of current tags 
+
+       
         #combine
         all_tags = current_tags + prev_read
         
@@ -350,43 +450,76 @@ while True:
         for tag in all_tags:
             #Handles logic for tags that are staying in the field
             if tag in prev_read and tag in current_tags:
+                #client_read(tag, 1)
                 if server_status:
                     try:
                         #Constructing payload for the server based on the client (Table, Cabinet)
                         msg ="*" +client_id[0] +"RR"+ tag.decode("utf-8") + " stayed in field\n"
                         
                         #Send the payload to the server for the client reads
-                        client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
+                        #client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
                     except Exception as e:
                         window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
             #Handles logic for tags that have left the field
             elif tag in prev_read and tag not in current_tags:
                 window["-EventLog-"].print(str(tag) + " has left field\n")
+                #client_read(tag, 1)
                 if server_status:
                     try:
                         #Constructing payload for the server based on the client (Table, Cabinet)
                         msg ="*" +client_id[0] +"RR"+ tag.decode("utf-8") + " has left field\n"
                         
                         #Send the payload to the server for the client reads
-                        client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
+                        #client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
                     except Exception as e:
                         window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
             #Handles logic for tags that have entered the field         
             elif tag in current_tags and tag not in prev_read:
                 window["-EventLog-"].print(str(tag) + " has entered field\n")
+                #client_read(tag, 1) #Do something with the queue here and caluclate the CI maybe then send to server...
                 if server_status:
                     try:
                         #Constructing payload for the server based on the client (Table, Cabinet)
                         msg ="*" +client_id[0] +"RR"+ tag.decode("utf-8") + " has entered field\n"
                         
                         #Send the payload to the server for the client reads
-                        client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
+                        #client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
                     except Exception as e:
                         window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
-
+            
         prev_read = current_tags[:]
+        
+        #Create dictionary of EPC's with their confidence intervals to send to server all at once 
+        epc_ci_list = {}
+       
+        #New logic for RFID Detection
+        #For all scanned tags, mark the item as read 
+        for item in current_tags:
+            epc_q = client_read(item, 1)
+            ci_val = client_calc_confidence(epc_q, 1, item)#Calculate the confidence value here 
+            epc_ci_list.update({item : ci_val})
+        #Find the symmetric difference between the current tags read and all tags that the client has ever read 
+        items_not_read = set(current_tags).symmetric_difference(client_epc_list)
 
-
+        #These are the items that need to be marked as a miss by this client
+        
+        
+        #For any items not read, add a value of zero. 
+        for item in items_not_read:
+            epc_q = client_read(item, 0)
+            ci_val = client_calc_confidence(epc_q, 0, item) #Calculate the confidence value here 
+            epc_ci_list.update({item : ci_val})
+        
+        #Send the list of EPC CI values to the server
+        if server_status:
+            try:
+                #Constructing payload for the server based on the client (Table, Cabinet)
+                msg ="*" +client_id[0] +"CI*"+ str(epc_ci_list) +'\n'
+                
+                #Send the payload to the server for the client reads
+                client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
+            except Exception as e:
+                window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
     #Checking if the client is connected to the server
     if server_status:
             #Check if there is anything that was sent from the server

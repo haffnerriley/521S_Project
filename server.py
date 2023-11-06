@@ -3,14 +3,33 @@ from __future__ import print_function
 import PySimpleGUI as sg
 import time
 from datetime import datetime
-import mercury
 import socket
 import threading
 import requests
 from netifaces import interfaces, ifaddresses, AF_INET
 import re
+import numpy as np
+from multiprocessing import shared_memory
 
 #Initializing global vars
+
+#Storing the reader turn
+table_read = False
+cabinet_read = False
+
+#Variable that stores CI values from both readers 
+client_ci_list = {}
+
+#Shared memory region
+shm = None 
+
+#Tracks if shared memory region is open or not 
+region_bool = False
+
+#Keeps track of the last read from the CV shared memory region
+cv_timer = 0
+
+#Keeps track of ip address 
 ipaddr = None
 
 # Configure the server address and port
@@ -31,17 +50,32 @@ reader_power = 1000
 #Selected EPC to update through the find button 
 epc_to_update = "None"
 
+#Default selected item in kitchen
+epc_in_kitchen = "None"
+
 #Dictionary of items that the server maintains 
 item_dictionary = {}
 
 #Set of items that the table detects 
 table_set = set()
 
+#Set of items that the table detects with CI values
+table_ci_set = set()
+
 #Set of items that the cabinet detects 
 cabinet_set = set()
 
+#Set of items that the cabinet detects with CI values
+cabinet_ci_set = set()
+
 #List of EPCS that the server found using the Find button
 epcs_to_update = []
+
+#List of items in the recipe
+items_in_recipe = []
+
+#Default item name in recipe dropdown
+default_item = "None"
 
 #Previous RFID reads 
 prev_read = []
@@ -63,10 +97,10 @@ server_read_status = False
 
 # Define the GUI layout
 layout = [
-    [sg.Text("Set Read Power (0-2700):"), sg.InputText(key="reader-power"), sg.Combo(connected_readers, default_value=selected_reader, key="cur-reader",size=(25,1), enable_events=True)],
-    [sg.Text("EPC to Update:"), sg.Combo(epcs_to_update, default_value=epc_to_update, key="epc",size=(25,1), enable_events=True)],
-    [sg.Text("New Item Name:"), sg.InputText(key="item-name")],
-    [sg.Button("Set Power"), sg.Button("Find Item"), sg.Button("Update Item"), sg.Button("Start Server", key="server-btn"), sg.Button("Start Reading", key="server-read")],
+    [sg.Text("Set Read Power (0-2700):"), sg.InputText(key="reader-power", size=(15,1)),sg.Text("Connected Clients:"), sg.Combo(connected_readers, default_value=selected_reader, key="cur-reader",size=(35,1), enable_events=True)],
+    [sg.Text("EPC to Update:"), sg.Combo(epcs_to_update, default_value=epc_to_update, key="epc",size=(25,1), enable_events=True), sg.Text("Items in Kitchen:"), sg.Combo(item_dictionary, default_value=epc_in_kitchen, key="epc-inventory",size=(25,1), enable_events=True)],
+    [sg.Text("New Item Name:"), sg.InputText(key="item-name", size=(20,1)), sg.Text("Items in Recipe:"), sg.Combo(items_in_recipe, default_value=default_item, key="recipe-items", size=(25,1))],
+    [sg.Button("Connect CV", key="cv-btn"), sg.Button("Set Power"), sg.Button("Find Item"), sg.Button("Update Item"), sg.Button("Start Server", key="server-btn"), sg.Button("Start Reading", key="server-read"),sg.Button("Add Item", key="add-item"), sg.Button("Remove Item", key="remove-item")],
     [sg.Multiline("", size=(50, 10), key="-EventLog-", disabled=True)]
 ]
 
@@ -115,6 +149,48 @@ def handleFindResponse(regex):
             epc_to_update = selected_item
         window["-EventLog-"].print(f"Selecting item: {epc_to_update}\n")
 
+#Function that handles connecting to the shared memory region 
+def connectCV():
+    global shm
+    global region_bool
+    global cv_timer
+
+    if region_bool:
+       shm.close()
+       region_bool = not region_bool
+    else:
+        shm = shared_memory.SharedMemory(name="shmemseg", create=False, size=np.zeros(3, dtype=np.float64).nbytes)
+        region_bool = not region_bool
+        cv_timer = 0
+
+def addItemToRecipe(item):
+    global items_in_recipe
+    global default_item
+    global window
+
+    if item == "None":
+        window["-EventLog-"].print(f"Please add items to kitchen using the Update button first!\n")
+    else:
+        default_item = item 
+        items_in_recipe.append(default_item)
+        window["recipe-items"].update(value=str(default_item), values=items_in_recipe)
+
+def removeItemFromRecipe(item):
+    global items_in_recipe
+    global default_item
+    global window
+
+    if item == "None":
+        window["-EventLog-"].print(f"Please add items to kitchen using the Update button first!\n")
+    else:
+        
+        items_in_recipe.remove(default_item)
+        if(len(items_in_recipe) > 0):
+            default_item = items_in_recipe[0]
+        else:
+            default_item = "None"
+        
+        window["recipe-items"].update(value=str(default_item), values=items_in_recipe)
 
 def handleReadResponse(regex): 
     global window
@@ -145,11 +221,35 @@ def handleReadResponse(regex):
     
     return None
 
+
+#Handles the confidence intervals sent from the clients
+def handleCIResponse(regex): 
+    global window
+    
+    #Extract all values after the initial three characters marking the type of packet
+    data_ci = regex.group(1)
+    
+    #Grab all EPC values and confidence intervals 
+    split_pattern = re.compile(r"b'([0-9A-Fa-f]{24})': \[([0-9.]+), ([0-9.]+), ([0-9.]+)\]")
+    
+    #Grabbing all EPC's and confidence intervals
+    #This is a list with arrays of EPCs and their CI values and last read time in seconds with the format [EPC,lower_conf_val, upper_conf_val, last_read_time]
+    epc_ci_list = split_pattern.findall(data_ci)
+    window["-EventLog-"].print(f"{epc_ci_list}\n")
+    return epc_ci_list
+
+#Function to ultimately compare the RFID values/average them out
+def compareRfidCi():
+    global client_ci_list
+    
+
+
+
 # Event loop to handle GUI Client/Server Communication
 while True:
     
     #Can change the timeout if we want to have a faster UI
-    event, values = window.read(timeout=500)
+    event, values = window.read(timeout=250)
     
     #Close the server socket if exit button pressed and server socket still open
     if event == sg.WINDOW_CLOSED:
@@ -234,24 +334,29 @@ while True:
         
         #Add the item to the dictionary with its EPC and given name
         item_dictionary.update({values["epc"] : values["item-name"]})
+        epc_in_kitchen = values["item-name"]
+        window["epc-inventory"].update(value=str(epc_in_kitchen), values=list(item_dictionary.values()))
         window["-EventLog-"].print(f"Item Updated! Items in inventory: {item_dictionary}\n")
     #Starts the server up
     elif event == "server-btn" and server_status == False:
         
         #Get the address of the computer the server is running on 
-        findIP()
+        try:
+            findIP()
 
-        #Create a socket for the server to accept connections on
-        server_socket= socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        server_socket.bind(server_address)
-        server_socket.settimeout(0.5)
+            #Create a socket for the server to accept connections on
+            server_socket= socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            server_socket.bind(server_address)
+            server_socket.settimeout(0.5)
         
-        #Setting the server status to True to track status
-        server_status = True
-        window["-EventLog-"].print(f"RFID Server listening on {server_address}")
+            #Setting the server status to True to track status
+            server_status = True
+            window["-EventLog-"].print(f"RFID Server listening on {server_address}")
 
-        #Update the Start server button to Stop Server
-        window[event].update("Stop Server")
+            #Update the Start server button to Stop Server
+            window[event].update("Stop Server")
+        except Exception as e:
+            window["-EventLog-"].print(f"Failed to start server with error: {str(e)}")
     #Stops the server
     elif event == "server-btn" and server_status:
         #Update the server button 
@@ -260,6 +365,22 @@ while True:
         #Close the socket for the server and update server status boolean
         server_socket.close()
         server_status = False
+    #Handles connecting to the shared memory region
+    elif event == "cv-btn" and region_bool == False:
+        try:
+            connectCV()
+            window[event].update("Disconnect CV")
+        except Exception as e:
+           window["-EventLog-"].print(f"Please start CV program first!: {str(e)}\n") 
+    elif event == "cv-btn" and region_bool:
+        connectCV()
+        window[event].update("Connect CV")
+    elif event == "add-item":
+        item_to_add = values["epc-inventory"]
+        addItemToRecipe(item_to_add)
+    elif event == "remove-item":
+        item_to_remove = values["recipe-items"]
+        removeItemFromRecipe(item_to_remove)
     #Requests that all connected clients start reading and pushing data to the server
     elif event == "server-read" and server_read_status == False:
         
@@ -302,6 +423,17 @@ while True:
         server_read_status = False
     
     #Main logic to handle Client Server data exchange
+
+    if region_bool:
+        if cv_timer == 0:
+            cv_timer = time.time()
+            c = np.ndarray((3,), dtype=np.float64, buffer=shm.buf)
+            window["-EventLog-"].print(f"CV values: {c}\n")
+        elif time.time() - cv_timer > 1:
+            cv_timer = 0
+            c = np.ndarray((3,), dtype=np.float64, buffer=shm.buf)
+            window["-EventLog-"].print(f"CV values: {c}\n")
+        
     if server_status:
         
         #Read from the clients
@@ -320,20 +452,37 @@ while True:
             #CRR denotes a Cabinet Reader Read packet
             cabinet_read_regex = re.match(r'.*CRR(.*)', data.decode('utf-8')) 
 
+            #TCI denotes a Table reader confidence interval list
+            table_ci_regex = re.match(r'.*TCI(.*)', data.decode('utf-8'))
+
+            #CCI denotes a Cabinet reader confidence interval list
+            cabinet_ci_regex = re.match(r'.*CCI(.*)', data.decode('utf-8'))
+
             if(table_find_regex):
                 epc = handleFindResponse(table_find_regex)
             elif(table_read_regex):
                 epc = handleReadResponse(table_read_regex)
-            
                 #Eventually may change format of data being sent from client to server... For now just add the epc to the clients dictionary if it isn't there already 
                 table_set.add(epc)
             elif(cabinet_find_regex):
                 epc = handleFindResponse(cabinet_find_regex)
             elif(cabinet_read_regex):
                 epc = handleReadResponse(cabinet_read_regex)
-
                 #Eventually may change format of data being sent from client to server... For now just add the epc to the clients dictionary if it isn't there already 
                 cabinet_set.add(epc)
+            elif(table_ci_regex and not table_read):
+                #Should return list of epcs + CI values
+                epcs = handleCIResponse(table_ci_regex)
+                client_ci_list.update({'Table' : epcs})
+                table_read = True
+                #Eventually may change format of data being sent from client to server... For now just add the epc to the clients dictionary if it isn't there already 
+                #Need to figure out what to do with EPC's and CI values after reading them in... This should be where the server maybe makes decisions based on CI values + CV..
+                #table_ci_set.add(epcs)
+            elif(cabinet_ci_regex and not cabinet_read):
+                #Should return list of epcs + CI values
+                epcs = handleCIResponse(cabinet_ci_regex)
+                client_ci_list.update({'Cabinet' : epcs})
+                cabinet_read = True
             elif data.decode('utf-8') == "Table Reader Connected":
                 window["-EventLog-"].print(f"Connected to Table Reader @ {client_address}")
                 
@@ -377,8 +526,17 @@ while True:
                 window["-EventLog-"].print(f"Client says: {data.decode('utf-8')}") 
         except:
             continue
-
         
+        #Checking if we have CI values from both clients 
+        if table_read and cabinet_read:
+            table_read = not table_read
+            cabinet_read = not cabinet_read
+
+            #Function to compare CI values of clients 
+            compareRfidCi()
+            
+            #Clearing the last two client RFID reads
+            client_ci_list = {}
 
     
 
