@@ -50,6 +50,9 @@ reader_power = 1000
 #Selected EPC to update through the find button 
 epc_to_update = "None"
 
+#Default selected item in kitchen
+epc_in_kitchen = "None"
+
 #Dictionary of items that the server maintains 
 item_dictionary = {}
 
@@ -67,6 +70,12 @@ cabinet_ci_set = set()
 
 #List of EPCS that the server found using the Find button
 epcs_to_update = []
+
+#List of items in the recipe
+items_in_recipe = []
+
+#Default item name in recipe dropdown
+default_item = "None"
 
 #Previous RFID reads 
 prev_read = []
@@ -88,10 +97,10 @@ server_read_status = False
 
 # Define the GUI layout
 layout = [
-    [sg.Text("Set Read Power (0-2700):"), sg.InputText(key="reader-power"), sg.Combo(connected_readers, default_value=selected_reader, key="cur-reader",size=(25,1), enable_events=True)],
-    [sg.Text("EPC to Update:"), sg.Combo(epcs_to_update, default_value=epc_to_update, key="epc",size=(25,1), enable_events=True)],
-    [sg.Text("New Item Name:"), sg.InputText(key="item-name")],
-    [sg.Button("Connect CV", key="cv-btn"), sg.Button("Set Power"), sg.Button("Find Item"), sg.Button("Update Item"), sg.Button("Start Server", key="server-btn"), sg.Button("Start Reading", key="server-read")],
+    [sg.Text("Set Read Power (0-2700):"), sg.InputText(key="reader-power", size=(15,1)),sg.Text("Connected Clients:"), sg.Combo(connected_readers, default_value=selected_reader, key="cur-reader",size=(35,1), enable_events=True)],
+    [sg.Text("EPC to Update:"), sg.Combo(epcs_to_update, default_value=epc_to_update, key="epc",size=(25,1), enable_events=True), sg.Text("Items in Kitchen:"), sg.Combo(item_dictionary, default_value=epc_in_kitchen, key="epc-inventory",size=(25,1), enable_events=True)],
+    [sg.Text("New Item Name:"), sg.InputText(key="item-name", size=(20,1)), sg.Text("Items in Recipe:"), sg.Combo(items_in_recipe, default_value=default_item, key="recipe-items", size=(25,1))],
+    [sg.Button("Connect CV", key="cv-btn"), sg.Button("Set Power"), sg.Button("Find Item"), sg.Button("Update Item"), sg.Button("Start Server", key="server-btn"), sg.Button("Start Reading", key="server-read"),sg.Button("Add Item", key="add-item"), sg.Button("Remove Item", key="remove-item")],
     [sg.Multiline("", size=(50, 10), key="-EventLog-", disabled=True)]
 ]
 
@@ -153,6 +162,35 @@ def connectCV():
         shm = shared_memory.SharedMemory(name="shmemseg", create=False, size=np.zeros(3, dtype=np.float64).nbytes)
         region_bool = not region_bool
         cv_timer = 0
+
+def addItemToRecipe(item):
+    global items_in_recipe
+    global default_item
+    global window
+
+    if item == "None":
+        window["-EventLog-"].print(f"Please add items to kitchen using the Update button first!\n")
+    else:
+        default_item = item 
+        items_in_recipe.append(default_item)
+        window["recipe-items"].update(value=str(default_item), values=items_in_recipe)
+
+def removeItemFromRecipe(item):
+    global items_in_recipe
+    global default_item
+    global window
+
+    if item == "None":
+        window["-EventLog-"].print(f"Please add items to kitchen using the Update button first!\n")
+    else:
+        
+        items_in_recipe.remove(default_item)
+        if(len(items_in_recipe) > 0):
+            default_item = items_in_recipe[0]
+        else:
+            default_item = "None"
+        
+        window["recipe-items"].update(value=str(default_item), values=items_in_recipe)
 
 def handleReadResponse(regex): 
     global window
@@ -296,6 +334,8 @@ while True:
         
         #Add the item to the dictionary with its EPC and given name
         item_dictionary.update({values["epc"] : values["item-name"]})
+        epc_in_kitchen = values["item-name"]
+        window["epc-inventory"].update(value=str(epc_in_kitchen), values=list(item_dictionary.values()))
         window["-EventLog-"].print(f"Item Updated! Items in inventory: {item_dictionary}\n")
     #Starts the server up
     elif event == "server-btn" and server_status == False:
@@ -335,6 +375,12 @@ while True:
     elif event == "cv-btn" and region_bool:
         connectCV()
         window[event].update("Connect CV")
+    elif event == "add-item":
+        item_to_add = values["epc-inventory"]
+        addItemToRecipe(item_to_add)
+    elif event == "remove-item":
+        item_to_remove = values["recipe-items"]
+        removeItemFromRecipe(item_to_remove)
     #Requests that all connected clients start reading and pushing data to the server
     elif event == "server-read" and server_read_status == False:
         
