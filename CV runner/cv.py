@@ -10,6 +10,18 @@ from multiprocessing import shared_memory
 import numpy as np
 import copy
 import time
+import signal
+
+def signal_handler(sig, frame):
+
+    print("cleaning shared memory....")
+    shm_server.close()
+    shm_cam.close()
+    shm_server.unlink()
+    shm_cam.unlink()
+
+    print("exiting..")
+    exit(0)
 
 #shared memory local segment to update and push
 #each index is an item
@@ -102,14 +114,11 @@ if pid > 0 :
     #close the memory segment on cntrl c
     except KeyboardInterrupt:
 
-        print("cleaning shared memory....")
-        shm_server.close()
-        shm_cam.close()
-        shm_server.unlink()
-        shm_cam.unlink()
+        #clean
+        signal_handler(None, None)
+        os.kill(pid, signal.SIGINT)
 
-        print("exiting..")
-        exit(0)
+        
 
 else:
 
@@ -132,6 +141,7 @@ else:
         cv2.imshow("frame", image)
         
         if cv2.waitKey(1) & 0xFF == ord('q'): 
+            os.kill(os.getppid(), signal.SIGINT)
             break
         
         #store frame in shared memory
