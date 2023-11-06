@@ -9,17 +9,7 @@ import os
 from multiprocessing import shared_memory
 import numpy as np
 import copy
-  
-# Opening image
-video_capture_device_index = 0
-webcam = cv2.VideoCapture(video_capture_device_index)
-
-#change camera resolution
-webcam.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-webcam.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
-
-#loading a given model
-model = YOLO("yolov8x.pt")
+import time
 
 #shared memory local segment to update and push
 #each index is an item
@@ -29,74 +19,123 @@ model = YOLO("yolov8x.pt")
 items = np.array([100.0, 100.0, 100.0])
 counter = 1
 
-#open shared memory segment
-shm = shared_memory.SharedMemory(name="shmemseg", create=True, size=items.nbytes)
+#empty frame for shape
+current_frame = np.zeros((720, 1280, 3), np.uint8)
 
-#main loop
-while True:
+#open shared segments
+shm_server = shared_memory.SharedMemory(name="shmemseg", create=True, size=items.nbytes)
+shm_cam = shared_memory.SharedMemory(name="shcamseg", create=True, size=current_frame.nbytes)
 
-    #read from webcam
-    ret, image = webcam.read()
-    pil_image = Image.fromarray(image)
+# Create a child process 
+pid = os.fork() 
+  
+# pid greater than 0 represents 
+# the parent process  
+if pid > 0 : 
 
-    #show the image for now
-    cv2.imshow("frame", image)
-    
-    if cv2.waitKey(1) & 0xFF == ord('q'): 
-        break
+    #let camera get set up
+    time.sleep(5)
 
-    #use yolo to detect
-    outputs = model.predict(pil_image)
+    #loading a given model
+    model = YOLO("yolov8x.pt")
 
-    #counter update
-    counter += 1
+    #main loop
+    while True:
 
-    #Scalable for multiple images to be processed at the same time (AKA more cameras = more better)
-    os.system('clear')
-    for output in outputs:
+        #sleep
+        time.sleep(1)
 
-        #get boxes
-        for box in output.boxes:
+        #grab frame from shared memory
+        current_frame_grabbed = np.ndarray(current_frame.shape, dtype=current_frame.dtype, buffer=shm_cam.buf)
+        pil_image = Image.fromarray(current_frame_grabbed)
 
-            #cheating the poison classes
-            if output.names[box.cls[0].item()] == "sink":
-                continue
+        #use yolo to detect
+        outputs = model.predict(pil_image)
 
-            #final score for comparison
-            item_label = box.cls[0].item()
-            confidence = box.conf[0].item()
+        #Scalable for multiple images to be processed at the same time (AKA more cameras = more better)
+        os.system('clear')
+        for output in outputs:
 
-            #Only for coco trained things
-            classname = output.names[item_label]
+            #get boxes
+            for box in output.boxes:
 
-            #print for now, replace later with comparison
-            if confidence > .4:
+                #cheating the poison classes
+                if output.names[box.cls[0].item()] == "sink":
+                    continue
+
+                #final score for comparison
+                item_label = box.cls[0].item()
+                confidence = box.conf[0].item()
+
+                #Only for coco trained things
+                classname = output.names[item_label]
+
+                #print for now, replace later with comparison
+                if confidence > .4:
+                    
+                    #update local shmem mirror
+                    match classname:
+                        case "spoon":
+                            items[0] += confidence
+                        case "bowl":
+                            items[1] += confidence
+                        case "cup":
+                            items[2] += confidence
+
+                    print("Found ", classname, " with confidence of ", confidence)
                 
-                #update local shmem mirror
-                match classname:
-                    case "spoon":
-                        items[0] += confidence
-                    case "bowl":
-                        items[1] += confidence
-                    case "cup":
-                        items[2] += confidence
+        #push to shared memory buffer
+        if counter == 1:
 
-                print("Found ", classname, " with confidence of ", confidence)
+            #push average confidence
+            buffer = np.ndarray(items.shape, dtype=items.dtype, buffer=shm_server.buf)
+            buffer[:] = items[:]/counter  
+
+            #display for testing
+            print(buffer) 
+
+            #reset local segment
+            items = np.array([0.0, 0.0, 0.0])
+            counter = 1
+
+    #close the memory segment
+    shm_server.close()
+    shm_cam.close()
+    shm_server.unlink()
+    shm_cam.unlink()
+
+else:
+
+    frame_counter = 0
+
+    # Opening image
+    video_capture_device_index = 0
+    webcam = cv2.VideoCapture(video_capture_device_index)
+
+    #change camera resolution
+    webcam.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
+    webcam.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+
+    while True:
+
+        #read from webcam
+        ret, image = webcam.read()
+
+        #show the image for now
+        cv2.imshow("frame", image)
+        
+        if cv2.waitKey(1) & 0xFF == ord('q'): 
+            break
+        
+        #store frame in shared memory
+        if frame_counter == 20:
+            frame_counter = 0
+
+            #load frame segment
+            shm_frame = np.ndarray(current_frame.shape, dtype=current_frame.dtype, buffer=shm_cam.buf)
+            shm_frame[:] = image[:]
+        
+        frame_counter += 1
             
-    #push to shared memory buffer
-    if counter == 10:
+    shm_cam.close()
 
-        #push average confidence
-        buffer = np.ndarray(items.shape, dtype=items.dtype, buffer=shm.buf)
-        buffer[:] = items[:]/counter   
-
-        #reset local segment
-        items = np.array([0.0, 0.0, 0.0])
-        counter = 0
-
-        #display for testing
-        print(items)
-
-#close the memory segment
-shm.close()
-shm.unlink()
