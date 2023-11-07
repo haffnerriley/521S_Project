@@ -163,6 +163,7 @@ def connectCV():
         region_bool = not region_bool
         cv_timer = 0
 
+#Function that will add the selected item in the Items in Kitchen dropdown to the Recipe being monitored 
 def addItemToRecipe(item):
     global items_in_recipe
     global default_item
@@ -175,6 +176,7 @@ def addItemToRecipe(item):
         items_in_recipe.append(default_item)
         window["recipe-items"].update(value=str(default_item), values=items_in_recipe)
 
+#Function that will remove the selected item in the Items in Recipe dropdown from the Recipe being monitored 
 def removeItemFromRecipe(item):
     global items_in_recipe
     global default_item
