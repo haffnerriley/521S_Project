@@ -27,8 +27,13 @@ def signal_handler(sig, frame):
 #each index is an item
 #spoon -> 0
 #bowl -> 1
-#cup -> 2
-items = np.array([100.0, 100.0, 100.0])
+#measuring cup -> 2
+#spatula -> 3
+#oatmeal box -> 4
+#oatmeal tin ->5
+#frying pan -> 6
+#scissors ->7
+items = np.array([100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0])
 counter = 1
 
 #empty frame for shape
@@ -83,17 +88,36 @@ if pid > 0 :
                     #Only for coco trained things
                     classname = output.names[item_label]
 
+                    #handle cross-poisoning classes
+                    match classname:
+                        case "Fork":
+                            classname = "Spatula"
+                        case "Box":
+                            classname = "Oatmeal box"
+                        case "Tin can":
+                            classname = "Oatmeal tin"
+
                     #print for now, replace later with comparison
                     if confidence > .4:
                         
                         #update local shmem mirror
                         match classname:
-                            case "spoon":
+                            case "Spoon":
                                 items[0] += confidence
-                            case "bowl":
+                            case "Bowl":
                                 items[1] += confidence
-                            case "cup":
+                            case "Measuring cup":
                                 items[2] += confidence
+                            case "Spatula":
+                                items[3] += confidence
+                            case "Oatmeal box":
+                                items[4] += confidence
+                            case "Oatmeal tin":
+                                items[5] += confidence
+                            case "Frying pan":
+                                items[6] += confidence
+                            case "Scissors":
+                                items[7] += confidence
 
                         print("Found ", classname, " with confidence of ", confidence)
                     
