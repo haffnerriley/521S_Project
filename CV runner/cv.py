@@ -33,7 +33,7 @@ def signal_handler(sig, frame):
 #oatmeal tin ->5
 #frying pan -> 6
 #scissors ->7
-items = np.array([100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0])
+items = np.array([100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0])
 counter = 1
 
 #empty frame for shape
@@ -132,7 +132,7 @@ if pid > 0 :
                 print(buffer) 
 
                 #reset local segment
-                items = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+                items = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
                 counter = 1
 
     #close the memory segment on cntrl c
