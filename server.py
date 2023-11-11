@@ -9,7 +9,7 @@ import requests
 from netifaces import interfaces, ifaddresses, AF_INET
 import re
 import numpy as np
-# from multiprocessing import shared_memory
+from multiprocessing import shared_memory
 
 #Initializing global vars
 
@@ -73,6 +73,9 @@ epcs_to_update = []
 
 #List of items in the recipe
 items_in_recipe = []
+
+#Map of items in the recipe 
+recipe_map = []
 
 #Default item name in recipe dropdown
 default_item = "None"
@@ -150,30 +153,34 @@ def handleFindResponse(regex):
         window["-EventLog-"].print(f"Selecting item: {epc_to_update}\n")
 
 #Function that handles connecting to the shared memory region 
-# def connectCV():
-    # global shm
-    # global region_bool
-    # global cv_timer
+def connectCV():
+    global shm
+    global region_bool
+    global cv_timer
 
-    # if region_bool:
-    #    shm.close()
-    #    region_bool = not region_bool
-    # else:
-    #     shm = shared_memory.SharedMemory(name="shmemseg", create=False, size=np.zeros(3, dtype=np.float64).nbytes)
-    #     region_bool = not region_bool
-    #     cv_timer = 0
+    if region_bool:
+       shm.close()
+       region_bool = not region_bool
+    else:
+        shm = shared_memory.SharedMemory(name="shmemseg", create=False, size=np.zeros(8, dtype=np.float64).nbytes)
+        region_bool = not region_bool
+        cv_timer = 0
 
 #Function that will add the selected item in the Items in Kitchen dropdown to the Recipe being monitored 
 def addItemToRecipe(item):
     global items_in_recipe
     global default_item
     global window
+    global recipe_map
 
     if item == "None":
         window["-EventLog-"].print(f"Please add items to kitchen using the Update button first!\n")
     else:
         default_item = item 
         items_in_recipe.append(default_item)
+        for key, value in item_dictionary.items():
+            if default_item == value:
+                recipe_map.append(key)
         window["recipe-items"].update(value=str(default_item), values=items_in_recipe)
 
 #Function that will remove the selected item in the Items in Recipe dropdown from the Recipe being monitored 
@@ -187,6 +194,10 @@ def removeItemFromRecipe(item):
     else:
         
         items_in_recipe.remove(default_item)
+        for key, value in item_dictionary.items():
+            if default_item == value:
+                recipe_map.remove(key)
+        
         if(len(items_in_recipe) > 0):
             default_item = items_in_recipe[0]
         else:
@@ -225,9 +236,8 @@ def handleReadResponse(regex):
 
 
 #Handles the confidence intervals sent from the clients
-def handleCIResponse(regex): 
+def CABINEThandleCIResponse(regex): 
     global window
-    
     #Extract all values after the initial three characters marking the type of packet
     data_ci = regex.group(1)
     
@@ -238,7 +248,41 @@ def handleCIResponse(regex):
     #This is a list with arrays of EPCs and their CI values and last read time in seconds with the format [EPC,lower_conf_val, upper_conf_val, last_read_time]
     epc_ci_list = split_pattern.findall(data_ci)
     window["-EventLog-"].print(f"{epc_ci_list}\n")
+    #################-Erics code to check time and ci values-#####################
+    ## Only return the values that have low time to read and high CI value (meaning they are likely in the location)
+    confident_tags = []
 
+    for item in epc_ci_list:
+        # avg the upper and lower ci values
+        ci_avg = (float(item[1]) + float(item[2]))/2
+
+        last_read_time = float(item[-1])
+        epc_val = item[0]
+
+        ##if the read time is less than 2 (tag was just read)
+        if(last_read_time < 2 or ci_avg > .75): # and epc_val[-3:] not in table_list:
+            ##if the avg CI is high 
+            confident_tags.append(item[0])
+                #table_list.append(item[0][-3:]) #add last 3 chars of each epc to the list
+        
+        # ##otherwise remove from list 
+        # elif(last_read_time > 2 or ci_avg < .8) and epc_val[-3:] in table_list:
+        #     table_list.remove(epc_val[-3:])
+
+    # return epc_ci_list
+    return confident_tags
+
+
+def TABLEhandleCIResponse(regex): 
+    global window
+    #Extract all values after the initial three characters marking the type of packet
+    data_ci = regex.group(1)
+    #Grab all EPC values and confidence intervals 
+    split_pattern = re.compile(r"b'([0-9A-Fa-f]{24})': \[([0-9.]+), ([0-9.]+), ([0-9.]+)\]")
+    #Grabbing all EPC's and confidence intervals
+    #This is a list with arrays of EPCs and their CI values and last read time in seconds with the format [EPC,lower_conf_val, upper_conf_val, last_read_time]
+    epc_ci_list = split_pattern.findall(data_ci)
+    window["-EventLog-"].print(f"{epc_ci_list}\n")
     #################-Erics code to check time and ci values-#####################
     ## Only return the values that have low time to read and high CI value (meaning they are likely in the location)
     confident_tags = []
@@ -250,10 +294,9 @@ def handleCIResponse(regex):
         epc_val = item[0]
 
         ##if the read time is less than 2 (tag was just read)
-        if(last_read_time < 2): # and epc_val[-3:] not in table_list:
+        if(last_read_time < 2 or ci_avg > .75): # and epc_val[-3:] not in table_list:
             ##if the avg CI is high 
-            if ci_avg > .8:
-                confident_tags.append(item[0])
+            confident_tags.append(item[0])
                 #table_list.append(item[0][-3:]) #add last 3 chars of each epc to the list
         
         # ##otherwise remove from list 
@@ -263,21 +306,23 @@ def handleCIResponse(regex):
     # return epc_ci_list
     return confident_tags
 
+
 #Function to ultimately compare the RFID values/average them out
 def compareRfidCi():
     global client_ci_list
-
+    
     #make 3 seperate lists for table, cabinet, and CV
     table_tags = client_ci_list['Table']
     cabinet_tags= client_ci_list['Cabinet']
     #cv_tags = client_ci_list['CV']
 
     for tag in table_tags:
-        if tag in items_in_recipe:
-            print("recipe item found: " + tag)
+        if tag in recipe_map:
+            print("recipe item found: " + item_dictionary.get(tag))
         else:
-            print("distractor item found: " + tag)
+            print("distractor item found: " + item_dictionary.get(tag))
 
+    #print("done doing compare")
 
 # Event loop to handle GUI Client/Server Communication
 while True:
@@ -461,11 +506,13 @@ while True:
     if region_bool:
         if cv_timer == 0:
             cv_timer = time.time()
-            c = np.ndarray((3,), dtype=np.float64, buffer=shm.buf)
+            c = np.ndarray((8,), dtype=np.float64, buffer=shm.buf)
+            client_ci_list.update({'CV' : c})
             window["-EventLog-"].print(f"CV values: {c}\n")
         elif time.time() - cv_timer > 1:
             cv_timer = 0
             c = np.ndarray((3,), dtype=np.float64, buffer=shm.buf)
+            client_ci_list.update({'CV' : c})
             window["-EventLog-"].print(f"CV values: {c}\n")
         
     if server_status:
@@ -491,7 +538,6 @@ while True:
 
             #CCI denotes a Cabinet reader confidence interval list
             cabinet_ci_regex = re.match(r'.*CCI(.*)', data.decode('utf-8'))
-
             if(table_find_regex):
                 epc = handleFindResponse(table_find_regex)
             elif(table_read_regex):
@@ -504,17 +550,17 @@ while True:
                 epc = handleReadResponse(cabinet_read_regex)
                 #Eventually may change format of data being sent from client to server... For now just add the epc to the clients dictionary if it isn't there already 
                 cabinet_set.add(epc)
-            elif(table_ci_regex and not table_read):
+            elif(table_ci_regex and table_read==False):
                 #Should return list of epcs + CI values
-                epcs = hanldeCIResponse(table_ci_regex)
+                epcs = TABLEhandleCIResponse(table_ci_regex)
                 client_ci_list.update({'Table' : epcs})
                 table_read = True
                 #Eventually may change format of data being sent from client to server... For now just add the epc to the clients dictionary if it isn't there already 
                 #Need to figure out what to do with EPC's and CI values after reading them in... This should be where the server maybe makes decisions based on CI values + CV..
                 #table_ci_set.add(epcs)
-            elif(cabinet_ci_regex and not cabinet_read):
+            elif(cabinet_ci_regex and cabinet_read==False):
                 #Should return list of epcs + CI values
-                epcs = handleCIResponse(cabinet_ci_regex)
+                epcs = CABINEThandleCIResponse(cabinet_ci_regex)
                 client_ci_list.update({'Cabinet' : epcs}) 
                 cabinet_read = True
             elif data.decode('utf-8') == "Table Reader Connected":
@@ -558,6 +604,10 @@ while True:
             #Prints any messages from the client that don't fall under one of these above conditions
             else:
                 window["-EventLog-"].print(f"Client says: {data.decode('utf-8')}") 
+                print("after broken client read")
+                print(table_read)
+                print(cabinet_read)
+
         except:
             continue
         
