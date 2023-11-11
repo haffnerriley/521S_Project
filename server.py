@@ -74,6 +74,9 @@ epcs_to_update = []
 #List of items in the recipe
 items_in_recipe = []
 
+#Map of items in the recipe 
+recipe_map = []
+
 #Default item name in recipe dropdown
 default_item = "None"
 
@@ -168,12 +171,16 @@ def addItemToRecipe(item):
     global items_in_recipe
     global default_item
     global window
+    global recipe_map
 
     if item == "None":
         window["-EventLog-"].print(f"Please add items to kitchen using the Update button first!\n")
     else:
         default_item = item 
         items_in_recipe.append(default_item)
+        for key, value in item_dictionary.items():
+            if default_item == value:
+                recipe_map.append(key)
         window["recipe-items"].update(value=str(default_item), values=items_in_recipe)
 
 #Function that will remove the selected item in the Items in Recipe dropdown from the Recipe being monitored 
@@ -187,6 +194,10 @@ def removeItemFromRecipe(item):
     else:
         
         items_in_recipe.remove(default_item)
+        for key, value in item_dictionary.items():
+            if default_item == value:
+                recipe_map.remove(key)
+        
         if(len(items_in_recipe) > 0):
             default_item = items_in_recipe[0]
         else:
@@ -250,10 +261,9 @@ def handleCIResponse(regex):
         epc_val = item[0]
 
         ##if the read time is less than 2 (tag was just read)
-        if(last_read_time < 2): # and epc_val[-3:] not in table_list:
+        if(last_read_time < 2 or ci_avg > .75): # and epc_val[-3:] not in table_list:
             ##if the avg CI is high 
-            if ci_avg > .8:
-                confident_tags.append(item[0])
+            confident_tags.append(item[0])
                 #table_list.append(item[0][-3:]) #add last 3 chars of each epc to the list
         
         # ##otherwise remove from list 
@@ -267,7 +277,16 @@ def handleCIResponse(regex):
 def compareRfidCi():
     global client_ci_list
     
+    #make 3 seperate lists for table, cabinet, and CV
+    table_tags = client_ci_list['Table']
+    cabinet_tags= client_ci_list['Cabinet']
+    #cv_tags = client_ci_list['CV']
 
+    for tag in table_tags:
+        if tag in recipe_map:
+            print("recipe item found: " + item_dictionary.get(tag))
+        else:
+            print("distractor item found: " + item_dictionary.get(tag))
 
 
 # Event loop to handle GUI Client/Server Communication
