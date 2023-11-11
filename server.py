@@ -266,8 +266,17 @@ def handleCIResponse(regex):
 #Function to ultimately compare the RFID values/average them out
 def compareRfidCi():
     global client_ci_list
-    
 
+    #make 3 seperate lists for table, cabinet, and CV
+    table_tags = client_ci_list['Table']
+    cabinet_tags= client_ci_list['Cabinet']
+    #cv_tags = client_ci_list['CV']
+
+    for tag in table_tags:
+        if tag in items_in_recipe:
+            print("recipe item found: " + tag)
+        else:
+            print("distractor item found: " + tag)
 
 
 # Event loop to handle GUI Client/Server Communication
@@ -497,7 +506,7 @@ while True:
                 cabinet_set.add(epc)
             elif(table_ci_regex and not table_read):
                 #Should return list of epcs + CI values
-                epcs = handleCIResponse(table_ci_regex)
+                epcs = hanldeCIResponse(table_ci_regex)
                 client_ci_list.update({'Table' : epcs})
                 table_read = True
                 #Eventually may change format of data being sent from client to server... For now just add the epc to the clients dictionary if it isn't there already 
@@ -506,7 +515,7 @@ while True:
             elif(cabinet_ci_regex and not cabinet_read):
                 #Should return list of epcs + CI values
                 epcs = handleCIResponse(cabinet_ci_regex)
-                client_ci_list.update({'Cabinet' : epcs})
+                client_ci_list.update({'Cabinet' : epcs}) 
                 cabinet_read = True
             elif data.decode('utf-8') == "Table Reader Connected":
                 window["-EventLog-"].print(f"Connected to Table Reader @ {client_address}")
