@@ -238,7 +238,30 @@ def handleCIResponse(regex):
     #This is a list with arrays of EPCs and their CI values and last read time in seconds with the format [EPC,lower_conf_val, upper_conf_val, last_read_time]
     epc_ci_list = split_pattern.findall(data_ci)
     window["-EventLog-"].print(f"{epc_ci_list}\n")
-    return epc_ci_list
+
+    #################-Erics code to check time and ci values-#####################
+    ## Only return the values that have low time to read and high CI value (meaning they are likely in the location)
+    confident_tags = []
+    for item in epc_ci_list:
+        # avg the upper and lower ci values
+        ci_avg = (float(item[1]) + float(item[2]))/2
+
+        last_read_time = float(item[-1])
+        epc_val = item[0]
+
+        ##if the read time is less than 2 (tag was just read)
+        if(last_read_time < 2): # and epc_val[-3:] not in table_list:
+            ##if the avg CI is high 
+            if ci_avg > .8:
+                confident_tags.append(item[0])
+                #table_list.append(item[0][-3:]) #add last 3 chars of each epc to the list
+        
+        # ##otherwise remove from list 
+        # elif(last_read_time > 2 or ci_avg < .8) and epc_val[-3:] in table_list:
+        #     table_list.remove(epc_val[-3:])
+
+    # return epc_ci_list
+    return confident_tags
 
 #Function to ultimately compare the RFID values/average them out
 def compareRfidCi():
