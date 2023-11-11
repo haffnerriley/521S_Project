@@ -132,7 +132,7 @@ if pid > 0 :
                 print(buffer) 
 
                 #reset local segment
-                items = np.array([0.0, 0.0, 0.0])
+                items = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
                 counter = 1
 
     #close the memory segment on cntrl c
