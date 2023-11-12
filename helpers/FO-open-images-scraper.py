@@ -59,8 +59,7 @@ lines[-1] = ammended_line
 lines.append("test: ./images/test/\n")
 lines.append("train: ./images/train/")
 
-open(file1 = open(sys.argv[1] + "/dataset.yaml", "a"))
-file1.close()
+open(sys.argv[1] + "/dataset.yaml", "a").writelines(lines)
 
 #remove temp folders
 for model_type in data_types:
