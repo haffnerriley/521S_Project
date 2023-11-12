@@ -48,10 +48,18 @@ for model_type in data_types:
     os.system("cp -r ./open-images7-" + model_type + dataset_name + "/labels/val " + sys.argv[1] + "/labels/" + model_type)
 
 #make the new yaml definition
-os.system("cp ./open-images7-" + model_type + dataset_name + "/*.yaml " + sys.argv[1] + "/dataset.yaml")
-file1 = open(sys.argv[1] + "/dataset.yaml", "a")
-file1.write("test: ./images/test/")
-file1.write("train: ./images/train/")
+#make sure we use the training yaml file or we overrun the end of the class list
+os.system("cp ./open-images7-" + "train" + dataset_name + "/*.yaml " + sys.argv[1] + "/dataset.yaml")
+
+
+#fix the error in the conversion "val" vs "validation"
+lines = open(sys.argv[1] + "/dataset.yaml", "r").readlines()
+ammended_line = "val: ./images/validation\n"
+lines[-1] = ammended_line
+lines.append("test: ./images/test/\n")
+lines.append("train: ./images/train/")
+
+open(file1 = open(sys.argv[1] + "/dataset.yaml", "a"))
 file1.close()
 
 #remove temp folders
