@@ -49,8 +49,8 @@ class Print_Buffer:
         shm_buffer_ptr = shared_memory.SharedMemory(name=Print_Buffer.pointerbufferkey, create=False, size=sys.getsizeof(Print_Buffer.tempBufferPointer))
 
         #tell os to not manage
-        unregister(shm_voice_buffer.name, 'shared_memory')
-        unregister(shm_buffer_ptr.name, 'shared_memory')
+        #unregister(shm_voice_buffer.name, 'shared_memory')
+        #unregister(shm_buffer_ptr.name, 'shared_memory')
 
         #fetch local representations of the segments
         shared_voice_buffer_segment = np.ndarray(tempVoicebuffer.shape, dtype=tempVoicebuffer.dtype, buffer=shm_voice_buffer.buf)
@@ -108,8 +108,8 @@ class Print_Buffer:
         shm_buffer_ptr = shared_memory.SharedMemory(name=Print_Buffer.pointerbufferkey, create=False, size=sys.getsizeof(Print_Buffer.tempBufferPointer))
 
         #tell os to not manage
-        unregister(shm_voice_buffer.name, 'shared_memory')
-        unregister(shm_buffer_ptr.name, 'shared_memory')
+        #unregister(shm_voice_buffer.name, 'shared_memory')
+        #unregister(shm_buffer_ptr.name, 'shared_memory')
 
         #fetch local representations of the segments
         shared_voice_buffer_segment = np.ndarray(tempVoicebuffer.shape, dtype=tempVoicebuffer.dtype, buffer=shm_voice_buffer.buf)
@@ -145,7 +145,11 @@ class Print_Buffer:
             myobj.save("speech.mp3") 
             
             # Playing the converted file 
-            os.system("mpg321 speech.mp3") 
+
+            if (sys.platform == "linux"):
+                os.system("mpg321 speech.mp3") 
+            if (sys.platform == "darwin"):
+                os.system("afplay speech.mp3") 
             os.system("rm speech.mp3")
 
             #refill area

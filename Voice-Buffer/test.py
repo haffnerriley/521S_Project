@@ -19,7 +19,8 @@ def signal_handler(sig, frame):
     exit(0)
 
 #enter the buffer object to print
-Print_Buffer.__post_message__("Hello world")
+for i in range(40):
+    Print_Buffer.__post_message__(str(i))
 
 while(True == True):
     1 == 1
