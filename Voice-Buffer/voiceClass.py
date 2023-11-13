@@ -62,9 +62,7 @@ class Print_Buffer:
 
         #duplicate buffer
         dup_buffer_pos = tempBufferPointer[0]
-
-        print(dup_buffer_pos)
-
+        
         #find the first open slot
         while shared_voice_buffer_segment[dup_buffer_pos] != tempVoicebuffer[0]:
             dup_buffer_pos = (dup_buffer_pos % 30) + 1

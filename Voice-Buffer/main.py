@@ -9,6 +9,7 @@
 
 import os
 from multiprocessing import shared_memory
+from multiprocessing.resource_tracker import register
 import numpy as np
 import signal
 import sys
