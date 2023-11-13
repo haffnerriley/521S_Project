@@ -12,6 +12,9 @@ import copy
 import time
 import signal
 
+#set os env for objective C
+os.environ['OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = "1"
+
 def signal_handler(sig, frame):
 
     print("cleaning shared memory....")
