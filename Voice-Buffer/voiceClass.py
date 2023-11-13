@@ -6,6 +6,7 @@ import signal
 import sys
 import fcntl
 from gtts import gTTS 
+import threading
 import asyncio
 
 class Print_Buffer:
@@ -31,6 +32,11 @@ class Print_Buffer:
     def __exit__ (fp):
         fcntl.flock(fp.fileno(), fcntl.LOCK_UN)
         fp.close()
+
+    #async version of the __post_message__ call
+    @staticmethod
+    def __post_message_async__(input_string_):
+        threading.Thread(target=Print_Buffer.__post_message__, args=(input_string_,)).start()
 
     #this is what we call when we want to post a message to the buffer
     @staticmethod

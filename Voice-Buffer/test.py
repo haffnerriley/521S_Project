@@ -27,4 +27,4 @@ while(True):
     #Print_Buffer.__post_message__(message)
 
     #non-blocking
-    threading.Thread(target=Print_Buffer.__post_message__, args=(message,)).start()
+    Print_Buffer.__post_message_async__(message)
