@@ -4,6 +4,7 @@ import numpy as np
 import signal
 import sys
 import fcntl
+import threading
 from gtts import gTTS 
 
 #import the class
@@ -21,4 +22,9 @@ def signal_handler(sig, frame):
 #enter the buffer object to print
 while(True):
     message = input("Enter message to print:")
-    Print_Buffer.__post_message__(message)
+    
+    #blocking
+    #Print_Buffer.__post_message__(message)
+
+    #non-blocking
+    threading.Thread(target=Print_Buffer.__post_message__, args=(message,)).start()

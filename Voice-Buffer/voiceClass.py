@@ -6,6 +6,7 @@ import signal
 import sys
 import fcntl
 from gtts import gTTS 
+import asyncio
 
 class Print_Buffer:
 
@@ -62,7 +63,7 @@ class Print_Buffer:
 
         #duplicate buffer
         dup_buffer_pos = tempBufferPointer[0]
-        
+
         #find the first open slot
         while shared_voice_buffer_segment[dup_buffer_pos] != tempVoicebuffer[0]:
             dup_buffer_pos = (dup_buffer_pos % 30) + 1
