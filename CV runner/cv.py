@@ -32,7 +32,7 @@ def signal_handler(sig, frame):
 #oatmeal box -> 4
 #oatmeal tin ->5
 #frying pan -> 6
-#scissors ->7
+#Salt and pepper shaker ->7
 items = np.array([100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0])
 counter = 1
 
@@ -54,7 +54,7 @@ if pid > 0 :
     time.sleep(5)
 
     #loading a given model
-    model = YOLO("yolov8x.pt")
+    model = YOLO("bestnew.pt")
 
     #main loop
     try:
@@ -96,6 +96,8 @@ if pid > 0 :
                             classname = "Oatmeal box"
                         case "Tin can":
                             classname = "Oatmeal tin"
+                        case "Frying pan":
+                            classname = "Pan"
 
                     #print for now, replace later with comparison
                     if confidence > .4:
@@ -114,9 +116,9 @@ if pid > 0 :
                                 items[4] += confidence
                             case "Oatmeal tin":
                                 items[5] += confidence
-                            case "Frying pan":
+                            case "Pan":
                                 items[6] += confidence
-                            case "Scissors":
+                            case "Salt and pepper shakers":
                                 items[7] += confidence
 
                         print("Found ", classname, " with confidence of ", confidence)
