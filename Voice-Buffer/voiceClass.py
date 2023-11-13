@@ -1,5 +1,6 @@
 import os
 from multiprocessing import shared_memory
+from multiprocessing.resource_tracker import unregister
 import numpy as np
 import signal
 import sys
@@ -47,6 +48,10 @@ class Print_Buffer:
         shm_voice_buffer = shared_memory.SharedMemory(name=Print_Buffer.voicesegmentkey, create=False, size=sys.getsizeof(Print_Buffer.tempVoicebuffer))
         shm_buffer_ptr = shared_memory.SharedMemory(name=Print_Buffer.pointerbufferkey, create=False, size=sys.getsizeof(Print_Buffer.tempBufferPointer))
 
+        #tell os to not manage
+        unregister(shm_voice_buffer.name, 'shared_memory')
+        unregister(shm_buffer_ptr.name, 'shared_memory')
+
         #fetch local representations of the segments
         shared_voice_buffer_segment = np.ndarray(tempVoicebuffer.shape, dtype=tempVoicebuffer.dtype, buffer=shm_voice_buffer.buf)
         shared_voice_buffer_pointer = np.ndarray(tempBufferPointer.shape, dtype=tempBufferPointer.dtype, buffer=shm_buffer_ptr.buf)
@@ -80,6 +85,11 @@ class Print_Buffer:
 
         Print_Buffer.__exit__(fp)
 
+        #exit the mem segments
+        
+        shm_voice_buffer.close()
+        shm_buffer_ptr.close()
+
     #grab a message from the queue each time we are ready to speak
     @staticmethod
     def __grab_message__():
@@ -96,6 +106,10 @@ class Print_Buffer:
         #open the shared memory segments
         shm_voice_buffer = shared_memory.SharedMemory(name=Print_Buffer.voicesegmentkey, create=False, size=sys.getsizeof(Print_Buffer.tempVoicebuffer))
         shm_buffer_ptr = shared_memory.SharedMemory(name=Print_Buffer.pointerbufferkey, create=False, size=sys.getsizeof(Print_Buffer.tempBufferPointer))
+
+        #tell os to not manage
+        unregister(shm_voice_buffer.name, 'shared_memory')
+        unregister(shm_buffer_ptr.name, 'shared_memory')
 
         #fetch local representations of the segments
         shared_voice_buffer_segment = np.ndarray(tempVoicebuffer.shape, dtype=tempVoicebuffer.dtype, buffer=shm_voice_buffer.buf)
@@ -149,6 +163,10 @@ class Print_Buffer:
             tempBufferPointer[:] = shared_voice_buffer_pointer[:] 
             print_from_buffer = tempBufferPointer[1]
         print("message entered into buffer")
+
+        #exit the mem segments
+        shm_voice_buffer.close()
+        shm_buffer_ptr.close()
 
         #recurse
         Print_Buffer.__grab_message__()
