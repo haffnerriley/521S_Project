@@ -20,11 +20,16 @@ pid = 0
 def signal_handler(sig, frame):
 
     print("cleaning shared memory....")
-    shm_server.close()
-    shm_cam.close()
-    shm_server.unlink()
-    shm_cam.unlink()
-    os.kill(pid, signal.SIGINT)
+
+    try:
+        shm_server.close()
+        shm_cam.close()
+        shm_server.unlink()
+        shm_cam.unlink()
+        os.kill(pid, signal.SIGINT)
+    
+    except Exception as e:
+        print("shared memory segments are already closed.... skipping...")
 
     print("exiting..")
     exit(0)
@@ -164,27 +169,33 @@ else:
     webcam.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     webcam.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
-    while shared_memory.SharedMemory(name="shmemseg", create=False, size=items.nbytes):
+    try:
+        while shared_memory.SharedMemory(name="shmemseg", create=False, size=items.nbytes):
 
-        #read from webcam
-        ret, image = webcam.read()
+            #read from webcam
+            ret, image = webcam.read()
 
-        #show the image for now
-        cv2.imshow("frame", image)
-        
-        if cv2.waitKey(1) & 0xFF == ord('q'): 
-            os.kill(os.getppid(), signal.SIGINT)
-            break
-        
-        #store frame in shared memory
-        if frame_counter == 20:
-            frame_counter = 0
+            #show the image for now
+            cv2.imshow("frame", image)
+            
+            if cv2.waitKey(1) & 0xFF == ord('q'): 
+                os.kill(os.getppid(), signal.SIGINT)
+                break
+            
+            #store frame in shared memory
+            if frame_counter == 20:
+                frame_counter = 0
 
-            #load frame segment
-            shm_frame = np.ndarray(current_frame.shape, dtype=current_frame.dtype, buffer=shm_cam.buf)
-            shm_frame[:] = image[:]
-        
-        frame_counter += 1
+                #load frame segment
+                shm_frame = np.ndarray(current_frame.shape, dtype=current_frame.dtype, buffer=shm_cam.buf)
+                shm_frame[:] = image[:]
+            
+            frame_counter += 1
+    
+    except Exception as e:
+        print("Camera buffer memory segment closed... closing self....")
+        shm_cam.close()
+        exit(-1)
             
     shm_cam.close()
 

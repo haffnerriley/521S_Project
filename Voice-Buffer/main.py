@@ -22,8 +22,13 @@ from voiceClass import *
 def signal_handler(sig, frame):
 
     print("cleaning voice buffer shared memory....")
-    shm_voice_buffer.close()
-    shm_voice_buffer.unlink()
+
+    try:
+        shm_voice_buffer.close()
+        shm_voice_buffer.unlink()
+    
+    except Exception as e:
+        print("shared memory segments are already closed.... skipping...")
 
     print("exiting voice buffer..")
     exit(0)
