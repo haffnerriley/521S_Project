@@ -164,7 +164,7 @@ else:
     webcam.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
     webcam.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
 
-    while True:
+    while shared_memory.SharedMemory(name="shmemseg", create=False, size=items.nbytes):
 
         #read from webcam
         ret, image = webcam.read()
