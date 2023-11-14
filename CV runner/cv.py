@@ -15,6 +15,8 @@ import signal
 #set os env for objective C
 os.environ['OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = "1"
 
+pid = 0
+
 def signal_handler(sig, frame):
 
     print("cleaning shared memory....")
@@ -22,6 +24,7 @@ def signal_handler(sig, frame):
     shm_cam.close()
     shm_server.unlink()
     shm_cam.unlink()
+    os.kill(pid, signal.SIGINT)
 
     print("exiting..")
     exit(0)
