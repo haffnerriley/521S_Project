@@ -1,0 +1,80 @@
+import os
+from multiprocessing import shared_memory
+import numpy as np
+import signal
+import sys
+import fcntl
+import threading
+from gtts import gTTS 
+
+#import the class
+from voiceClass import *
+
+def signal_handler(sig, frame):
+
+    print("cleaning voice buffer shared memory....")
+    shm_voice_buffer.close()
+    shm_voice_buffer.unlink()
+
+    print("exiting voice buffer..")
+    exit(0)
+
+#stubbed entry method
+def scan_side(tags):
+
+    #enter the found tag into the set
+    tags.add("Tag" + str(random()))
+
+    print("Scan_Object: STUB")
+
+    return tags
+    
+
+#stubbed save method
+def save_to_database(tags):
+
+
+    print("Save_To_Database: STUB")
+    
+
+#enter the buffer object to print
+while(True):
+
+    tags = {}
+
+    Print_Buffer.__post_message_async__("Entring object entry mode. Please place tracking stickers on the desired item and place the item in front of the sensor.")
+    
+    tags = scan_side(tags)
+
+    Print_Buffer.__post_message_async__("Rotate object so a different tag is facing the sensor again and wait 5 seconds")
+
+    time.sleep(5)
+
+    tags = scan_side(tags)
+
+    Print_Buffer.__post_message_async__("Rotate object again so a different tag is facing the sensor again and wait 5 seconds")
+
+    time.sleep(5)
+
+    tags = scan_side(tags)
+
+    Print_Buffer.__post_message_async__("Rotate object one last time so a different tag is facing the sensor again and wait 5 seconds")
+
+    time.sleep(5)
+
+    tags = scan_side(tags)
+
+    Print_Buffer.__post_message_async__(str(len(tags)) + " tags were found. Please Enter a name to associate with these tags")
+
+    name = input("Enter name to associate with tags:")
+
+    Print_Buffer.__post_message_async__("these " + str(len(tags)) + " tags are now associated with " + name)
+
+    save_to_database(tags)
+
+    Print_Buffer.__post_message_async__("Object successfully saved. Do you want to enter another object?")
+
+    name = input("Y/N")
+
+    if name != "Y":
+        exit(0)
