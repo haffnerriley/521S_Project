@@ -24,19 +24,34 @@ def launch_process(pythonEnv, Path, i):
     hold = subprocess.Popen([pythonEnv, Path])
     pids[i] = hold.pid
 
+
+option = input("Do you want to launch the (C)ooking processes or the object (E)ntry processes or (Q)uit (C/E/Q): ")
+
 #try to launch all core processes
 try:
     
-    #launch Voice process
-    launch_process('python'+pythonEnv, "Voice-Buffer/main.py", 1)
+    if (option == "C"):
+        #launch Voice process
+        launch_process('python'+pythonEnv, "Voice-Buffer/main.py", 1)
 
-    #launch CV Process
-    time.sleep(5)
-    launch_process('python'+pythonEnv, "CV Runner/cv.py",2)
+        #launch CV Process
+        time.sleep(5)
+        launch_process('python'+pythonEnv, "CV Runner/cv.py",2)
 
-    #launch server process
-    time.sleep(5)
-    launch_process('python'+pythonEnv, "server.py",0)
+        #launch server process
+        time.sleep(5)
+        launch_process('python'+pythonEnv, "server.py",0)
+
+    elif (option == "E"):
+        #launch Voice process
+        launch_process('python'+pythonEnv, "Voice-Buffer/main.py", 1)
+
+        #launch Entry Process
+        time.sleep(5)
+        launch_process('python'+pythonEnv, "Entry/Entry_Process.py",2)
+    else:
+        print("exiting.... Goodbye")
+        exit(0)
 
 except:
     print(f"Could not launch a core process")
@@ -48,14 +63,26 @@ while True:
 
     items = np.array([100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0])
     current_frame = np.zeros((720, 1280, 3), np.uint8)
-    try:
-        shm_voice_buffer = shared_memory.SharedMemory(name=Print_Buffer.voicesegmentkey, create=False, size=sys.getsizeof(Print_Buffer.tempVoicebuffer))
-        shm_buffer_ptr = shared_memory.SharedMemory(name=Print_Buffer.pointerbufferkey, create=False, size=sys.getsizeof(Print_Buffer.tempBufferPointer))
-        shm_server = shared_memory.SharedMemory(name="shmemseg", create=False, size=items.nbytes)
-        shm_cam = shared_memory.SharedMemory(name="shcamseg", create=False, size=current_frame.nbytes)
-    except Exception as e:
-        print("Something went wrong checking up on the shared memory: " +  str(e))
-        print("Closing all segments and killing all running sub-processes.....")
-        for pid in pids:
-            os.kill(pid, signal.SIGINT)
-        exit(-1)
+
+    if (option == "C"):
+        try:
+            shm_voice_buffer = shared_memory.SharedMemory(name=Print_Buffer.voicesegmentkey, create=False, size=sys.getsizeof(Print_Buffer.tempVoicebuffer))
+            shm_buffer_ptr = shared_memory.SharedMemory(name=Print_Buffer.pointerbufferkey, create=False, size=sys.getsizeof(Print_Buffer.tempBufferPointer))
+            shm_server = shared_memory.SharedMemory(name="shmemseg", create=False, size=items.nbytes)
+            shm_cam = shared_memory.SharedMemory(name="shcamseg", create=False, size=current_frame.nbytes)
+        except Exception as e:
+            print("Something went wrong checking up on the shared memory: " +  str(e))
+            print("Closing all segments and killing all running sub-processes.....")
+            for pid in pids:
+                os.kill(pid, signal.SIGINT)
+            exit(-1)
+    else:
+        try:
+            shm_voice_buffer = shared_memory.SharedMemory(name=Print_Buffer.voicesegmentkey, create=False, size=sys.getsizeof(Print_Buffer.tempVoicebuffer))
+            shm_buffer_ptr = shared_memory.SharedMemory(name=Print_Buffer.pointerbufferkey, create=False, size=sys.getsizeof(Print_Buffer.tempBufferPointer))
+        except Exception as e:
+            print("Something went wrong checking up on the shared memory: " +  str(e))
+            print("Closing all segments and killing all running sub-processes.....")
+            for pid in pids:
+                os.kill(pid, signal.SIGINT)
+            exit(-1)
