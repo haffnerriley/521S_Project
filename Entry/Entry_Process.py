@@ -10,6 +10,7 @@ import time
 from gtts import gTTS 
 
 #import the class
+sys.path.append('Voice-Buffer/')
 from voiceClass import *
 
 def signal_handler(sig, frame):
@@ -46,6 +47,8 @@ while(True):
 
     Print_Buffer.__post_message__("Entring object entry mode. Please place tracking stickers on the desired item and place the item in front of the sensor.")
     
+    time.sleep(5)
+
     tags = scan_side(tags)
 
     Print_Buffer.__post_message__("Rotate object so a different tag is facing the sensor again and wait 5 seconds")
@@ -76,7 +79,7 @@ while(True):
 
     Print_Buffer.__post_message__("Object successfully saved. Do you want to enter another object?")
 
-    name = input("Y/N")
+    name = input("Y/N:")
 
     if name != "Y":
         exit(0)
