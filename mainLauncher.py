@@ -10,20 +10,31 @@ import numpy as np
 
 #change to fit platform python version desired
 pythonEnv="3"
+pythonVenvPath = "NULL"
 
 #pid list
 pids = [0,0,0]
 
 #add current dirs
 sys.path.insert(0, os.getcwd() + "/Voice-Buffer")
-sys.path.insert(0, os.getcwd() + "/CV Runner")
+sys.path.insert(0, os.getcwd() + "/CV-Runner")
 sys.path.insert(0, os.getcwd() + "/helpers")
 from voiceClass import *
 
 def launch_process(pythonEnv, Path, i):
-    hold = subprocess.Popen([pythonEnv, Path])
-    pids[i] = hold.pid
 
+    #if we want to use a venv
+    if pythonVenvPath != "NULL":
+        hold = subprocess.Popen([pythonVenvPath, Path])
+        pids[i] = hold.pid
+    else:
+        hold = subprocess.Popen([pythonEnv, Path])
+        pids[i] = hold.pid
+
+venv = input("Are you using a venv? (Y/N): ")
+
+if venv == "Y":
+    pythonVenvPath = input("please enter the venv path (absolute): ")
 
 option = input("Do you want to launch the (C)ooking processes or the object (E)ntry processes or (Q)uit (C/E/Q): ")
 
@@ -36,7 +47,7 @@ try:
 
         #launch CV Process
         time.sleep(5)
-        launch_process('python'+pythonEnv, "CV Runner/cv.py",2)
+        launch_process('python'+pythonEnv, "CV-Runner/cv.py",2)
 
         #launch server process
         time.sleep(5)
