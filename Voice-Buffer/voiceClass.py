@@ -90,8 +90,14 @@ class Print_Buffer:
 
         Print_Buffer.__exit__(fp)
 
+        #block until we get our message printed
+        tempBufferPointer[:] = shared_voice_buffer_pointer[:] 
+        while (tempBufferPointer[0] != dup_buffer_pos): 
+            tempBufferPointer[:] = shared_voice_buffer_pointer[:] 
+        while (tempBufferPointer[0] == dup_buffer_pos):
+            tempBufferPointer[:] = shared_voice_buffer_pointer[:] 
+
         #exit the mem segments
-        
         shm_voice_buffer.close()
         shm_buffer_ptr.close()
 
@@ -142,6 +148,7 @@ class Print_Buffer:
                 #find the first non-open slot
                 while tempVoicebuffer[buff_pos] == tempVoicebuffer[0]:
                     buff_pos = (buff_pos % 30) + 1
+
                 tempBufferPointer[0] = buff_pos
 
                 #grab the message and "speak" it before replacing it
@@ -161,10 +168,14 @@ class Print_Buffer:
 
                 #refill area
                 tempVoicebuffer[buff_pos] = tempVoicebuffer[0]
+                buff_pos = (buff_pos % 30) + 1
+                tempBufferPointer[0] = buff_pos
                 
                 #update the shared memory segments
                 shared_voice_buffer_segment[:] = tempVoicebuffer[:]
                 shared_voice_buffer_pointer[:] = tempBufferPointer[:]
+
+                print(tempBufferPointer)
 
             Print_Buffer.__exit__(fp)
 
