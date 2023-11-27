@@ -31,13 +31,26 @@ def scan_side(tags):
     print("Scan_Object: STUB")
 
     return tags
-    
+
+#JSON Writers/Readers
+def writeJSONFile(fileName, data):
+    with open(fileName, 'w') as fp:
+        json.dump(data, fp)
+ 
+def readJSONFile(fileName):
+    f = open('data.json')
+    return json.load(f)
 
 #stubbed save method
 def save_to_database(tags):
+    
+    old_data = readJSONFile("data.json")
 
+    old_data.update(tags)
 
-    print("Save_To_Database: STUB")
+    writeJSONFile("data.json", old_data)
+
+    print("Save_To_Database: data.json")
     
 
 #enter the buffer object to print
@@ -72,10 +85,12 @@ while(True):
     Print_Buffer.__post_message__(str(len(tags)) + " tags were found. Please Enter a name to associate with these tags")
 
     name = input("Enter name to associate with tags:")
+    ret_dict = {}
+    ret_dict[name] = list(tags)
 
     Print_Buffer.__post_message__("these " + str(len(tags)) + " tags are now associated with " + name)
 
-    save_to_database(tags)
+    save_to_database(ret_dict)
 
     Print_Buffer.__post_message__("Object successfully saved. Do you want to enter another object?")
 
