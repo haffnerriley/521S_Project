@@ -175,14 +175,14 @@ def initializeEPCS(reader_recipe_update_regex):
     
     recipe_epcs = reader_recipe_update_regex.group(1)
 
-    print("recipe_epcs: " + str(recipe_epcs) +'\n')
+    
     #Grab all EPC values send from client as a response to find command 
     split_pattern = re.compile(r"'([A-Fa-f0-9]{24})'")
 
     #Finding all occurences of 24 byte EPCS in the client response
     recipe_epc_list = split_pattern.findall(recipe_epcs)
     
-    print("recipe epc list: " + str(recipe_epc_list))
+    
     
     epc_ci_list = {}
     #update the list of EPCs to include all epcs in recipe to allow server + client algorithm to initilize CI values 
@@ -192,8 +192,8 @@ def initializeEPCS(reader_recipe_update_regex):
         epc_q = client_read(item, 0)
         ci_val = client_calc_confidence(epc_q, 0, item) #Calculate the confidence value here 
         epc_ci_list.update({item : ci_val})
-        print(epc_ci_list)
-    
+        
+    print(epc_ci_list)
     try:
         #Constructing payload for the server based on the client (Table, Cabinet)
         msg ="*" +client_id[0] +"CI*"+ str(epc_ci_list) +'\n'
@@ -467,10 +467,6 @@ while True:
         #make a read
         current_tags = list(map(lambda t: t.epc, reader.read())) #Play around with the read rate to get more samples. Or shorten the window/queue
        
-        #print(current_tags)
-        #Need to update all tags that have ever been scanned and make queue have zeros if not in the set of current tags 
-
-       
         #combine
         all_tags = current_tags + prev_read
         
@@ -478,51 +474,51 @@ while True:
         all_tags = list(set(all_tags))
 
         #Should this entire loop be removed? 
-        for tag in all_tags:
-            #Handles logic for tags that are staying in the field
-            if tag in prev_read and tag in current_tags:
-                #client_read(tag, 1)
-                if server_status:
-                    try:
-                        #Constructing payload for the server based on the client (Table, Cabinet)
-                        msg ="*" +client_id[0] +"RR"+ tag.decode("utf-8") + " stayed in field\n"
+        # for tag in all_tags:
+        #     #Handles logic for tags that are staying in the field
+        #     if tag in prev_read and tag in current_tags:
+        #         #client_read(tag, 1)
+        #         if server_status:
+        #             try:
+        #                 #Constructing payload for the server based on the client (Table, Cabinet)
+        #                 msg ="*" +client_id[0] +"RR"+ tag.decode("utf-8") + " stayed in field\n"
                         
-                        #Send the payload to the server for the client reads
-                        #client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
-                    except Exception as e:
-                        window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
-            #Handles logic for tags that have left the field
-            elif tag in prev_read and tag not in current_tags:
-                window["-EventLog-"].print(str(tag) + " has left field\n")
-                #client_read(tag, 1)
-                if server_status:
-                    try:
-                        #Constructing payload for the server based on the client (Table, Cabinet)
-                        msg ="*" +client_id[0] +"RR"+ tag.decode("utf-8") + " has left field\n"
+        #                 #Send the payload to the server for the client reads
+        #                 #client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
+        #             except Exception as e:
+        #                 window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
+        #     #Handles logic for tags that have left the field
+        #     elif tag in prev_read and tag not in current_tags:
+        #         window["-EventLog-"].print(str(tag) + " has left field\n")
+        #         #client_read(tag, 1)
+        #         if server_status:
+        #             try:
+        #                 #Constructing payload for the server based on the client (Table, Cabinet)
+        #                 msg ="*" +client_id[0] +"RR"+ tag.decode("utf-8") + " has left field\n"
                         
-                        #Send the payload to the server for the client reads
-                        #client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
-                    except Exception as e:
-                        window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
-            #Handles logic for tags that have entered the field         
-            elif tag in current_tags and tag not in prev_read:
-                window["-EventLog-"].print(str(tag) + " has entered field\n")
-                #client_read(tag, 1) #Do something with the queue here and caluclate the CI maybe then send to server...
-                if server_status:
-                    try:
-                        #Constructing payload for the server based on the client (Table, Cabinet)
-                        msg ="*" +client_id[0] +"RR"+ tag.decode("utf-8") + " has entered field\n"
+        #                 #Send the payload to the server for the client reads
+        #                 #client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
+        #             except Exception as e:
+        #                 window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
+        #     #Handles logic for tags that have entered the field         
+        #     elif tag in current_tags and tag not in prev_read:
+        #         window["-EventLog-"].print(str(tag) + " has entered field\n")
+        #         #client_read(tag, 1) #Do something with the queue here and caluclate the CI maybe then send to server...
+        #         if server_status:
+        #             try:
+        #                 #Constructing payload for the server based on the client (Table, Cabinet)
+        #                 msg ="*" +client_id[0] +"RR"+ tag.decode("utf-8") + " has entered field\n"
                         
-                        #Send the payload to the server for the client reads
-                        #client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
-                    except Exception as e:
-                        window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
+        #                 #Send the payload to the server for the client reads
+        #                 #client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
+        #             except Exception as e:
+        #                 window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
             
-        prev_read = current_tags[:]
+        #prev_read = current_tags[:]
         
         #Create dictionary of EPC's with their confidence intervals to send to server all at once 
         epc_ci_list = {}
-        print(str(current_tags))
+        
         #New logic for RFID Detection
         #For all scanned tags, mark the item as read 
         for item in current_tags:

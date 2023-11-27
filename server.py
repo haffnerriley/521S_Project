@@ -136,7 +136,7 @@ def handleFindResponse(regex):
     global item_dictionary
     #Splitting the response up from the client find command 
     data_find = regex.group(1)
-    print("data_find " + str(data_find))
+    
     #Grab all EPC values send from client as a response to find command 
     split_pattern = re.compile(r'.{1,24}')
 
