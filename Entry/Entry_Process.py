@@ -38,7 +38,7 @@ def writeJSONFile(fileName, data):
         json.dump(data, fp)
  
 def readJSONFile(fileName):
-    f = open('data.json')
+    f = open(fileName)
     return json.load(f)
 
 #stubbed save method
