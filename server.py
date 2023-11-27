@@ -98,6 +98,9 @@ server_status = False
 #Status of server reading from RFID modules 
 server_read_status = False
 
+#Booleans to track if the initial CI values for the table and cabinet are being recieved
+initial_cabinet = False
+initial_table = False
 # Define the GUI layout
 layout = [
     [sg.Text("Set Read Power (0-2700):"), sg.InputText(key="reader-power", size=(15,1)),sg.Text("Connected Clients:"), sg.Combo(connected_readers, default_value=selected_reader, key="cur-reader",size=(35,1), enable_events=True)],
@@ -133,7 +136,7 @@ def handleFindResponse(regex):
     global item_dictionary
     #Splitting the response up from the client find command 
     data_find = regex.group(1)
-    
+    print("data_find " + str(data_find))
     #Grab all EPC values send from client as a response to find command 
     split_pattern = re.compile(r'.{1,24}')
 
@@ -238,10 +241,12 @@ def handleReadResponse(regex):
 #Handles the confidence intervals sent from the clients
 def CABINEThandleCIResponse(regex): 
     global window
+   
     #Extract all values after the initial three characters marking the type of packet
     data_ci = regex.group(1)
     
     #Grab all EPC values and confidence intervals 
+   
     split_pattern = re.compile(r"b'([0-9A-Fa-f]{24})': \[([0-9.]+), ([0-9.]+), ([0-9.]+)\]")
     
     #Grabbing all EPC's and confidence intervals
@@ -275,13 +280,16 @@ def CABINEThandleCIResponse(regex):
 
 def TABLEhandleCIResponse(regex): 
     global window
+    
     #Extract all values after the initial three characters marking the type of packet
     data_ci = regex.group(1)
-    #Grab all EPC values and confidence intervals 
+
     split_pattern = re.compile(r"b'([0-9A-Fa-f]{24})': \[([0-9.]+), ([0-9.]+), ([0-9.]+)\]")
+
     #Grabbing all EPC's and confidence intervals
     #This is a list with arrays of EPCs and their CI values and last read time in seconds with the format [EPC,lower_conf_val, upper_conf_val, last_read_time]
     epc_ci_list = split_pattern.findall(data_ci)
+    print(epc_ci_list)
     window["-EventLog-"].print(f"{epc_ci_list}\n")
     #################-Erics code to check time and ci values-#####################
     ## Only return the values that have low time to read and high CI value (meaning they are likely in the location)
@@ -470,13 +478,22 @@ while True:
         
         #Send Read command to all connected clients
         try:
+            epc_bytes_list = []
+
+            for epc_str in list(recipe_map):
+                epc_bytes = bytes.fromhex(epc_str)
+                epc_bytes_list.append(bytes(epc_str, encoding="utf-8"))  # Prepend b to create byte literal
+                
+            print(epc_bytes_list)
             for client_addr in client_addrs:
                 client_selected= client_addr
-                msg ="*RRU*"+ str(recipe_map) +'\n'
-                
+                msg ="*RRU*"+ str(epc_bytes_list) +'\n'
+            
                 #Send the payload to the server for the client reads
                 #First payload contains all EPCs in recipe 
                 server_socket.sendto(bytes(msg, encoding="utf-8"), client_selected)
+
+                #Maybe move this to be inside the handleCIfunctions when initial cabinet is still true?
                 server_socket.sendto(b'Read', client_selected)
         except:
             window["-EventLog-"].print(f"Failed to start reading!\n")
@@ -608,10 +625,9 @@ while True:
             
             #Prints any messages from the client that don't fall under one of these above conditions
             else:
-                window["-EventLog-"].print(f"Client says: {data.decode('utf-8')}") 
-                print("after broken client read")
-                print(table_read)
-                print(cabinet_read)
+                window["-EventLog-"].print(f"Client says: {data.decode('utf-8')} \n") 
+               
+               
 
         except:
             continue

@@ -171,6 +171,37 @@ def clientFind():
         client_socket.sendto(b'Failed to start reading!', server_address)
         return
 
+def initializeEPCS(reader_recipe_update_regex):
+    
+    recipe_epcs = reader_recipe_update_regex.group(1)
+
+    print("recipe_epcs: " + str(recipe_epcs) +'\n')
+    #Grab all EPC values send from client as a response to find command 
+    split_pattern = re.compile(r"'([A-Fa-f0-9]{24})'")
+
+    #Finding all occurences of 24 byte EPCS in the client response
+    recipe_epc_list = split_pattern.findall(recipe_epcs)
+    
+    print("recipe epc list: " + str(recipe_epc_list))
+    
+    epc_ci_list = {}
+    #update the list of EPCs to include all epcs in recipe to allow server + client algorithm to initilize CI values 
+    for item in recipe_epc_list:
+   
+        item = bytes(item, encoding="utf-8")
+        epc_q = client_read(item, 0)
+        ci_val = client_calc_confidence(epc_q, 0, item) #Calculate the confidence value here 
+        epc_ci_list.update({item : ci_val})
+        print(epc_ci_list)
+    
+    try:
+        #Constructing payload for the server based on the client (Table, Cabinet)
+        msg ="*" +client_id[0] +"CI*"+ str(epc_ci_list) +'\n'
+        
+        #Send the payload to the server for the client reads
+        client_socket.sendto(bytes(msg, encoding="utf-8"), server_address)
+    except Exception as e:
+        window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
 #Handles the queus that each EPC has associated with it for caluclating the hit/miss ratio. The read value should be 1 if a hit 0 if a miss
 def client_read(EPC, read_val):
     global item_confidence_vals
@@ -184,11 +215,11 @@ def client_read(EPC, read_val):
         #Add the new epc to the client list to use for updating each queue 
         client_epc_list.append(EPC) 
         epc_queue = Queue()
-        epc_queue.put(1)
-        epc_queue.put(1) #Adding a second 1 to calculate stdev for initial read
+        epc_queue.put(read_val)
+        epc_queue.put(read_val) #Adding a second 1 to calculate stdev for initial read
         item_confidence_vals.update({EPC : epc_queue})
         item_read_times.update({EPC : time.time()})
-        prev_item_read = 1
+        prev_item_read = read_val
         return epc_queue
     else:
         epc_queue = item_confidence_vals.get(EPC)
@@ -491,10 +522,11 @@ while True:
         
         #Create dictionary of EPC's with their confidence intervals to send to server all at once 
         epc_ci_list = {}
-       
+        print(str(current_tags))
         #New logic for RFID Detection
         #For all scanned tags, mark the item as read 
         for item in current_tags:
+           
             epc_q = client_read(item, 1)
             ci_val = client_calc_confidence(epc_q, 1, item)#Calculate the confidence value here 
             epc_ci_list.update({item : ci_val})
@@ -535,7 +567,7 @@ while True:
                         power = re.match(pattern, server_msg)
 
                         #Handles the recipe epc list sent from the server 
-                        reader_recipe_update_regex = re.match(r'.*RRU(.*)', server_msg.decode('utf-8'))
+                        reader_recipe_update_regex = re.match( r'.*RRU(.*)', server_msg)
                         
                         if power:
                             #Server power command 
@@ -544,21 +576,8 @@ while True:
                             #Server find command 
                             clientFind()
                         elif reader_recipe_update_regex:
-                            recipe_epcs = reader_recipe_update_regex.group(1)
-
-                            print(recipe_epcs)
-                            #Grab all EPC values send from client as a response to find command 
-                            split_pattern = re.compile(r'.{1,24}')
-
-                            #Finding all occurences of 24 byte EPCS in the client response
-                            recipe_epc_list = split_pattern.findall(recipe_epcs)
-
-                            #update the list of EPCs to include all epcs in recipe to allow server + client algorithm to initilize CI values 
-                            for item in recipe_epc_list:
-                                epc_q = client_read(item, 0)
-                                ci_val = client_calc_confidence(epc_q, 0, item) #Calculate the confidence value here 
-                                epc_ci_list.update({item : ci_val})
-                                
+                            #Initilizing EPCs for clients to create CI values for 
+                            initializeEPCS(reader_recipe_update_regex)
                         elif server_msg == "Read":
                             #Checks if reader is connected before changing the reading status
                             if(reader_status == "disconnected"):
