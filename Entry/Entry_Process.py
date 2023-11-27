@@ -1,4 +1,4 @@
-import os
+import os, os.path
 from multiprocessing import shared_memory
 import numpy as np
 import signal
@@ -7,6 +7,7 @@ import fcntl
 import random
 import threading
 import time
+import json
 from gtts import gTTS 
 
 #import the class
@@ -44,8 +45,11 @@ def readJSONFile(fileName):
 #stubbed save method
 def save_to_database(tags):
     
-    old_data = readJSONFile("data.json")
+    old_data = {}
 
+    if os.path.isfile('data.json'):
+        old_data = readJSONFile("data.json")
+        
     old_data.update(tags)
 
     writeJSONFile("data.json", old_data)
