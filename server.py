@@ -472,6 +472,11 @@ while True:
         try:
             for client_addr in client_addrs:
                 client_selected= client_addr
+                msg ="*RRU*"+ str(recipe_map) +'\n'
+                
+                #Send the payload to the server for the client reads
+                #First payload contains all EPCs in recipe 
+                server_socket.sendto(bytes(msg, encoding="utf-8"), client_selected)
                 server_socket.sendto(b'Read', client_selected)
         except:
             window["-EventLog-"].print(f"Failed to start reading!\n")

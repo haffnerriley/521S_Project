@@ -446,7 +446,7 @@ while True:
         #remove duplicates
         all_tags = list(set(all_tags))
 
-        
+        #Should this entire loop be removed? 
         for tag in all_tags:
             #Handles logic for tags that are staying in the field
             if tag in prev_read and tag in current_tags:
@@ -534,12 +534,31 @@ while True:
                         pattern = r"Power (\d+)"
                         power = re.match(pattern, server_msg)
 
+                        #Handles the recipe epc list sent from the server 
+                        reader_recipe_update_regex = re.match(r'.*RRU(.*)', server_msg.decode('utf-8'))
+                        
                         if power:
                             #Server power command 
                             clientPower(power.group(1))
                         elif server_msg == "Find":
                             #Server find command 
                             clientFind()
+                        elif reader_recipe_update_regex:
+                            recipe_epcs = reader_recipe_update_regex.group(1)
+
+                            print(recipe_epcs)
+                            #Grab all EPC values send from client as a response to find command 
+                            split_pattern = re.compile(r'.{1,24}')
+
+                            #Finding all occurences of 24 byte EPCS in the client response
+                            recipe_epc_list = split_pattern.findall(recipe_epcs)
+
+                            #update the list of EPCs to include all epcs in recipe to allow server + client algorithm to initilize CI values 
+                            for item in recipe_epc_list:
+                                epc_q = client_read(item, 0)
+                                ci_val = client_calc_confidence(epc_q, 0, item) #Calculate the confidence value here 
+                                epc_ci_list.update({item : ci_val})
+                                
                         elif server_msg == "Read":
                             #Checks if reader is connected before changing the reading status
                             if(reader_status == "disconnected"):
