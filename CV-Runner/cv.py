@@ -44,6 +44,7 @@ def signal_handler(sig, frame):
 #oatmeal tin ->5
 #frying pan -> 6
 #Salt and pepper shaker ->7
+classList = ["Spoon", "Bowl", "Measuring cup", "Spatula", "Salt tin", "Pan", "Salt and pepper shakers", "Oatmeal box"]
 items = np.array([100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0])
 counter = 1
 
@@ -106,7 +107,7 @@ if pid > 0 :
                         case "Box":
                             classname = "Oatmeal box"
                         case "Tin can":
-                            classname = "Oatmeal tin"
+                            classname = "Salt tin"
                         case "Frying pan":
                             classname = "Pan"
 
@@ -131,6 +132,10 @@ if pid > 0 :
                                 items[6] += confidence
                             case "Salt and pepper shakers":
                                 items[7] += confidence
+
+                        #if not a class we want, skip class
+                        if classname not in classList:
+                            continue
 
                         print("Found ", classname, " with confidence of ", confidence)
                     

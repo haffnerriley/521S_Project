@@ -7,7 +7,7 @@ cap = cv2.VideoCapture(0)
 cap.set(3, 1280)
 cap.set(4, 720)
 
-classList = ["Spoon", "Bowl", "Measuring cup", "Spatula", "Oatmeal tin", "Pan", "Salt and pepper shakers"]
+classList = ["Spoon", "Bowl", "Measuring cup", "Spatula", "Salt tin", "Pan", "Salt and pepper shakers", "Oatmeal box"]
 
 while True:
     _, img = cap.read()
@@ -33,7 +33,7 @@ while True:
                 case "Box":
                     classname = "Oatmeal box"
                 case "Tin can":
-                    classname = "Oatmeal tin"
+                    classname = "Salt tin"
                 case "Frying pan":
                     classname = "Pan"
 
