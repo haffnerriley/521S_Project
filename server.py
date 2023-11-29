@@ -327,6 +327,7 @@ def compareRfidCi():
     for tag in table_tags:
         if tag in recipe_map:
             print("recipe item found: " + item_dictionary.get(tag))
+            #Maybe add the item names to the table/cabinet sets here so that we can use multiple tags for one object easily. 
         else:
             print("distractor item found: " + item_dictionary.get(tag))
 
