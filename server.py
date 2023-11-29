@@ -726,3 +726,6 @@ while True:
 
 # Close the window
 window.close()
+
+#close segment
+shm.close()
