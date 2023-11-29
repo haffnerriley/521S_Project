@@ -255,29 +255,34 @@ def CABINEThandleCIResponse(regex):
     window["-EventLog-"].print(f"{epc_ci_list}\n")
     #################-Erics code to check time and ci values-#####################
     ## Only return the values that have low time to read and high CI value (meaning they are likely in the location)
-    confident_tags = []
+   # confident_tags = []
 
+    ci_avg_tags = []
     for item in epc_ci_list:
-        # avg the upper and lower ci values
+    #     # avg the upper and lower ci values
         ci_avg = (float(item[1]) + float(item[2]))/2
 
         last_read_time = float(item[-1])
         epc_val = item[0]
 
-        ##if the read time is less than 2 (tag was just read)
-        if(last_read_time < 2 or ci_avg > .75): # and epc_val[-3:] not in table_list:
-            ##if the avg CI is high 
-            confident_tags.append(item[0])
+        #Creating a map of epc values read from the table and their average ci value + last read time 
+        ci_avg_tags.update({epc_val : [ci_avg, last_read_time]})
+
+    #     ##if the read time is less than 2 (tag was just read)
+    #     if(last_read_time < 2 or ci_avg > .75): # and epc_val[-3:] not in table_list:
+    #         ##if the avg CI is high 
+    #         confident_tags.append(item[0])
                 #table_list.append(item[0][-3:]) #add last 3 chars of each epc to the list
         
         # ##otherwise remove from list 
         # elif(last_read_time > 2 or ci_avg < .8) and epc_val[-3:] in table_list:
         #     table_list.remove(epc_val[-3:])
+    return ci_avg_tags
+    #return epc_ci_list
+    # return confident_tags
 
-    # return epc_ci_list
-    return confident_tags
 
-
+#Going to refactor this back to returning the list of EPCS + CI values to be able to use for comparing with the cabinet
 def TABLEhandleCIResponse(regex): 
     global window
     
@@ -293,26 +298,28 @@ def TABLEhandleCIResponse(regex):
     window["-EventLog-"].print(f"{epc_ci_list}\n")
     #################-Erics code to check time and ci values-#####################
     ## Only return the values that have low time to read and high CI value (meaning they are likely in the location)
-    confident_tags = []
+    ci_avg_tags = []
     for item in epc_ci_list:
-        # avg the upper and lower ci values
+    #     # avg the upper and lower ci values
         ci_avg = (float(item[1]) + float(item[2]))/2
 
         last_read_time = float(item[-1])
         epc_val = item[0]
 
-        ##if the read time is less than 2 (tag was just read)
-        if(last_read_time < 2 or ci_avg > .75): # and epc_val[-3:] not in table_list:
-            ##if the avg CI is high 
-            confident_tags.append(item[0])
+        #Creating a map of epc values read from the table and their average ci value + last read time 
+        ci_avg_tags.update({epc_val : [ci_avg, last_read_time]})
+    #     ##if the read time is less than 2 (tag was just read)
+    #     if(last_read_time < 4 or ci_avg > .5): # and epc_val[-3:] not in table_list:
+    #         ##if the avg CI is high 
+    #         confident_tags.append(item[0])
                 #table_list.append(item[0][-3:]) #add last 3 chars of each epc to the list
         
         # ##otherwise remove from list 
         # elif(last_read_time > 2 or ci_avg < .8) and epc_val[-3:] in table_list:
         #     table_list.remove(epc_val[-3:])
-
-    # return epc_ci_list
-    return confident_tags
+    return ci_avg_tags
+    #return epc_ci_list
+    # return confident_tags
 
 
 #Function to ultimately compare the RFID values/average them out
@@ -574,7 +581,7 @@ while True:
                 #Eventually may change format of data being sent from client to server... For now just add the epc to the clients dictionary if it isn't there already 
                 cabinet_set.add(epc)
             elif(table_ci_regex and table_read==False):
-                #Should return list of epcs + CI values
+                #Should return a map of EPC's and their CI avg and last read time {EPC : [CI_AVG, LAST_READ_TIME]}
                 epcs = TABLEhandleCIResponse(table_ci_regex)
                 client_ci_list.update({'Table' : epcs})
                 table_read = True
