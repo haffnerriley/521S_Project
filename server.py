@@ -327,12 +327,13 @@ def compareRfidCi():
     global client_ci_list
     global table_set
     global cabinet_set
+
     #make 3 seperate lists for table, cabinet, and CV
     table_tags = client_ci_list['Table']
     cabinet_tags= client_ci_list['Cabinet']
     
     #Use this as a last resort if don't see any Ci value?
-    cv_names = client_ci_list['CV']
+    cv_list = client_ci_list['CV']
 
     #Looping through items in the recipe, then removing them from the table/cabinet tag lists to determine the distractors left over
     
@@ -359,9 +360,9 @@ def compareRfidCi():
             print("Item found on table! YAY!")
         elif (cabinet_epc_ci > 0.25 or cabinet_read_time < 4) and (table_epc_ci < 0.25 or table_read_time > 4):
             #If the cabinet epc ci value is at least 25% confident and read time within last 4s and table reader doesn't detect 
-            cabinet_set.add(recipe_map[epc])
-            table_tags.remove(epc)
-            cabinet_tags.remove(epc)
+            #cabinet_set.add(recipe_map[epc])
+            #table_tags.remove(epc)
+            #cabinet_tags.remove(epc)
 
             #Tell the user that the item is in their cabinet 
             print("Recipe item found in cabinet!")
@@ -370,8 +371,29 @@ def compareRfidCi():
         else:
             #Check the CV here to see if possible readers are not reading 
             #Then if the item isn't detected by the CV, output a message saying its missing and break or continue?
-            print("missing item?")
-            return
+            #Get the item name from the epc
+            item_name = recipe_map[epc] 
+           
+            #Boolean for tracking if an item is missing or not for the CV
+            missing = True
+
+            #Loop through the items that the CV sees 
+            for cv_item in cv_list:
+                print('CV Item CI: ' + str(cv_item))
+
+                #IF the CV detects the item at this point, mark it as there...
+                if cv_item[0] == item_name and cv_item[1] > 0.0:
+                    print("CV Detected Item! ")
+                    table_set.add(recipe_map[epc])
+                    table_tags.remove(epc)
+                    cabinet_tags.remove(epc)
+                    missing = False
+                    break
+
+            #Have the speaker tell the user that the item is missing 
+            if missing:
+                print("missing item?")
+                return
             #return or break?
     
     #Go through the leftover's (distractors) and figure out what items remain and where 
@@ -398,7 +420,7 @@ def compareRfidCi():
                 #Return or break?
                 break
 
-            elif (table_epc_ci < 0.33 or table_read_time > 4):
+            elif (table_epc_ci < 0.33 or table_read_time > 2):
                 #Continue as usual. Item maybe moved?
                 continue
                 
