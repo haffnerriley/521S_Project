@@ -340,6 +340,7 @@ def compareRfidCi():
     for epc in list(recipe_map):
         
         #Should already be in the table tag list bc we send all recipe epcs when server starts reading 
+        
         table_read_vals = table_tags[epc]
         cabinet_read_vals = cabinet_tags[epc]
 
@@ -380,30 +381,30 @@ def compareRfidCi():
         
         for epc in list(table_tags):
         
-        #Should already be in the table tag list bc we send all recipe epcs when server starts reading 
-        table_read_vals = table_tags[epc]
-        
-
-        #Getting the two CI values and last read times to compare 
-        table_epc_ci = table_read_vals[0]
-        table_read_time = table_read_vals[1]
-        
-        #Compare the CI values + remove items from table_tags and cabinet_tags found 
-        if (table_epc_ci > 0.33 or table_read_time < 2):
-            #Tell the user that a distractor item is here
-            print("Distractor found ")
-            
-            #Probably want to break here or something to get the process started again?
-            #Return or break?
-            break
-
-        elif (table_epc_ci < 0.33 or table_read_time > 4):
-            #Continue as usual. Item maybe moved?
-            continue
+            #Should already be in the table tag list bc we send all recipe epcs when server starts reading 
+            table_read_vals = table_tags[epc]
             
 
-    
-    
+            #Getting the two CI values and last read times to compare 
+            table_epc_ci = table_read_vals[0]
+            table_read_time = table_read_vals[1]
+            
+            #Compare the CI values + remove items from table_tags and cabinet_tags found 
+            if (table_epc_ci > 0.33 or table_read_time < 2):
+                #Tell the user that a distractor item is here
+                print("Distractor found ")
+                
+                #Probably want to break here or something to get the process started again?
+                #Return or break?
+                break
+
+            elif (table_epc_ci < 0.33 or table_read_time > 4):
+                #Continue as usual. Item maybe moved?
+                continue
+                
+
+        
+        
     print("All items found!")
 
 
@@ -555,7 +556,7 @@ while True:
         #Send Read command to all connected clients
         try:
             epc_bytes_list = []
-
+            print("Recipe Map: " + str(recipe_map))
             for epc_str in list(recipe_map):
                 epc_bytes = bytes.fromhex(epc_str)
                 epc_bytes_list.append(bytes(epc_str, encoding="utf-8"))  # Prepend b to create byte literal
