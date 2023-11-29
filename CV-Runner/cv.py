@@ -65,7 +65,7 @@ if pid > 0 :
     time.sleep(5)
 
     #loading a given model
-    model = YOLO("bestnew.pt")
+    model = YOLO("./Model/model.pt")
 
     #main loop
     try:

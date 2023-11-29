@@ -2,7 +2,7 @@ from ultralytics import YOLO
 import cv2
 from ultralytics.utils.plotting import Annotator  # ultralytics.yolo.utils.plotting is deprecated
 
-model = YOLO('bestnew.pt')
+model = YOLO('../Model/model.pt')
 cap = cv2.VideoCapture(0)
 cap.set(3, 1280)
 cap.set(4, 720)
