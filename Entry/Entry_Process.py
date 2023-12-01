@@ -15,6 +15,11 @@ from gtts import gTTS
 sys.path.append('Voice-Buffer/')
 from voiceClass import *
 
+#open the shared memory segments
+vector_of_tags = np.array(["NULL" * 10] * 100)
+shm_server = shared_memory.SharedMemory(name="shmemseg", create=True, size=vector_of_tags.nbytes)
+shm_server[:] = vector_of_tags[:]
+
 def signal_handler(sig, frame):
 
     print("cleaning voice buffer shared memory....")
@@ -27,10 +32,17 @@ def signal_handler(sig, frame):
 #stubbed entry method
 def scan_side(tags):
 
-    #enter the found tag into the set
-    tags.add("Tag" + str(random.random()))
+    #send a request to read
+    #STUB
 
-    print("Scan_Object: STUB")
+    #give it 2 seconds to get values
+    time.sleep(2)
+
+    #enter the found tag into the set
+    vector_of_tags[:] = shm_server[:]
+    for item in vector_of_tags:
+        if item[0:4] != "NULL":
+            tags.add(item)
 
     return tags
 
