@@ -130,6 +130,12 @@ def findIP():
             ipaddr = addresses[0]
             server_address = (ipaddr, 12345)
 
+        elif ifaceName == 'en0':
+
+            #Configuring global ipaddr and server address
+            ipaddr = addresses[0]
+            server_address = (ipaddr, 12345)
+
 def handleFindResponse(regex):
     global epc_to_update
     global window
@@ -350,7 +356,7 @@ def compareRfidCi():
     for epc in list(recipe_map):
         
         #Should already be in the table tag list bc we send all recipe epcs when server starts reading 
-        
+        print("EPC value" + str(epc))
         table_read_vals = table_tags[epc]
         cabinet_read_vals = cabinet_tags[epc]
 
