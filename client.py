@@ -189,7 +189,7 @@ def initializeEPCS(reader_recipe_update_regex):
     for item in recipe_epc_list:
    
         item = bytes(item, encoding="utf-8")
-        epc_q = client_read(item, 0)
+        epc_q = client_read(item, 0, True)
         ci_val = client_calc_confidence(epc_q, 0, item) #Calculate the confidence value here 
         epc_ci_list.update({item : ci_val})
         
@@ -203,7 +203,7 @@ def initializeEPCS(reader_recipe_update_regex):
     except Exception as e:
         window["-EventLog-"].print(f"Failed to send tag data to the server: {str(e)}\n") 
 #Handles the queus that each EPC has associated with it for caluclating the hit/miss ratio. The read value should be 1 if a hit 0 if a miss
-def client_read(EPC, read_val):
+def client_read(EPC, read_val, first_read):
     global item_confidence_vals
     global client_epc_list
     global item_read_times
@@ -218,7 +218,10 @@ def client_read(EPC, read_val):
         epc_queue.put(read_val)
         epc_queue.put(read_val) #Adding a second 1 to calculate stdev for initial read
         item_confidence_vals.update({EPC : epc_queue})
-        item_read_times.update({EPC : time.time()})
+        if(first_read):
+            item_read_times.update({EPC : 500.0})
+        else:
+            item_read_times.update({EPC : time.time()})
         prev_item_read = read_val
         return epc_queue
     else:
@@ -523,7 +526,7 @@ while True:
         #For all scanned tags, mark the item as read 
         for item in current_tags:
            
-            epc_q = client_read(item, 1)
+            epc_q = client_read(item, 1, False)
             ci_val = client_calc_confidence(epc_q, 1, item)#Calculate the confidence value here 
             epc_ci_list.update({item : ci_val})
         #Find the symmetric difference between the current tags read and all tags that the client has ever read 
@@ -534,7 +537,7 @@ while True:
         
         #For any items not read, add a value of zero. 
         for item in items_not_read:
-            epc_q = client_read(item, 0)
+            epc_q = client_read(item, 0, False)
             ci_val = client_calc_confidence(epc_q, 0, item) #Calculate the confidence value here 
             epc_ci_list.update({item : ci_val})
         
