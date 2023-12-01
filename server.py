@@ -265,16 +265,14 @@ def CABINEThandleCIResponse(regex):
 
     ci_avg_tags = {}
     for item in epc_ci_list:
-        print("CABINET: in loop for item")
     #     # avg the upper and lower ci values
         ci_avg = (float(item[1]) + float(item[2]))/2
 
         last_read_time = float(item[-1])
         epc_val = item[0]
-
+        if item_dictionary.get(epc_val) != None:
         #Creating a map of epc values read from the table and their average ci value + last read time 
-        ci_avg_tags.update({epc_val : [ci_avg, last_read_time]})
-        print("Cabinet: end loop itr")
+            ci_avg_tags.update({epc_val : [ci_avg, last_read_time]})
     #     ##if the read time is less than 2 (tag was just read)
     #     if(last_read_time < 2 or ci_avg > .75): # and epc_val[-3:] not in table_list:
     #         ##if the avg CI is high 
@@ -284,7 +282,6 @@ def CABINEThandleCIResponse(regex):
         # ##otherwise remove from list 
         # elif(last_read_time > 2 or ci_avg < .8) and epc_val[-3:] in table_list:
         #     table_list.remove(epc_val[-3:])
-    print("CABINET end of compare CI")
     return ci_avg_tags
     #return epc_ci_list
     # return confident_tags
@@ -302,22 +299,20 @@ def TABLEhandleCIResponse(regex):
     #Grabbing all EPC's and confidence intervals
     #This is a list with arrays of EPCs and their CI values and last read time in seconds with the format [EPC,lower_conf_val, upper_conf_val, last_read_time]
     epc_ci_list = split_pattern.findall(data_ci)
-    print(epc_ci_list)
+    #print(epc_ci_list)
     #window["-EventLog-"].print(f"{epc_ci_list}\n")
     #################-Erics code to check time and ci values-#####################
     ## Only return the values that have low time to read and high CI value (meaning they are likely in the location)
     ci_avg_tags = {}
     for item in epc_ci_list:
-        print("TABLE: in loop for item")
     #     # avg the upper and lower ci values
         ci_avg = (float(item[1]) + float(item[2]))/2
 
         last_read_time = float(item[-1])
         epc_val = item[0]
-
+        if item_dictionary.get(epc_val) != None:
         #Creating a map of epc values read from the table and their average ci value + last read time 
-        ci_avg_tags.update({epc_val : [ci_avg, last_read_time]})
-        print("TABLE: end loop itr")
+            ci_avg_tags.update({epc_val : [ci_avg, last_read_time]})
     #     ##if the read time is less than 2 (tag was just read)
     #     if(last_read_time < 4 or ci_avg > .5): # and epc_val[-3:] not in table_list:
     #         ##if the avg CI is high 
@@ -329,7 +324,6 @@ def TABLEhandleCIResponse(regex):
         #     table_list.remove(epc_val[-3:])
 
 
-    print("END OF TABLE HANDLE CI VALUES")
     return ci_avg_tags
     #return epc_ci_list
     # return confident_tags
@@ -352,11 +346,14 @@ def compareRfidCi():
     #Looping through items in the recipe, then removing them from the table/cabinet tag lists to determine the distractors left over
     
     #First loop through and check for all recipe items 
-    print("Before recipe loop")
-    for epc in list(recipe_map):
+    recipe_set = set(list(recipe_map))
+    print("Before recipe loop, set: " + str((recipe_set)))
+
+
+    for epc in recipe_set:
         
         #Should already be in the table tag list bc we send all recipe epcs when server starts reading 
-        print("EPC value" + str(epc))
+        #print("EPC value " + str(epc))
         table_read_vals = table_tags[epc]
         cabinet_read_vals = cabinet_tags[epc]
 
@@ -367,8 +364,8 @@ def compareRfidCi():
         cabinet_read_time = cabinet_read_vals[1]
 
         #Compare the CI values + remove items from table_tags and cabinet_tags found 
-        if (table_epc_ci > 0.25 or table_read_time < 4) and (cabinet_epc_ci < 0.25 or cabinet_read_time > 4):
-            print("Item found on table, --- putting it in lists")
+        if (table_epc_ci > 0.25 or table_read_time < 3) and (cabinet_epc_ci < 0.25 or cabinet_read_time > 3):
+            
             #If the table epc ci value is at least 25% confident and read time within last 4s and cabinet reader doesn't detect 
             table_set.add(item_dictionary.get(epc))
             # print("printing table_tags[epc]: ")
@@ -376,18 +373,20 @@ def compareRfidCi():
             del table_tags[epc]
             del cabinet_tags[epc]
             #cabinet_tags.remove(epc)
-            print("Item found on table! YAY!")
-        elif (cabinet_epc_ci > 0.25 or cabinet_read_time < 4) and (table_epc_ci < 0.25 or table_read_time > 4):
+            print("Item: " +str(epc)+ " found on table! YAY!")
+        elif (cabinet_epc_ci > 0.25 or cabinet_read_time < 3) and (table_epc_ci < 0.25 or table_read_time > 3):
             #If the cabinet epc ci value is at least 25% confident and read time within last 4s and table reader doesn't detect 
             #cabinet_set.add(recipe_map[epc])
             #table_tags.remove(epc)
             #cabinet_tags.remove(epc)
 
             #Tell the user that the item is in their cabinet 
-            print("Recipe item found in cabinet!")
+            print("Recipe item: " + str(epc) + " found in cabinet!")
             #Return or break
             return
         else:
+            print("CV handled; continuing(missing)")
+            continue
             #Check the CV here to see if possible readers are not reading 
             #Then if the item isn't detected by the CV, output a message saying its missing and break or continue?
             #Get the item name from the epc
@@ -418,10 +417,10 @@ def compareRfidCi():
     #Go through the leftover's (distractors) and figure out what items remain and where 
     if (len(table_tags) != 0):
         #Notify the user that a distractor was detected on the table 
-        print("Distractors detected!")
+        #print("Distractors detected!")
         
         for epc in list(table_tags):
-        
+            
             #Should already be in the table tag list bc we send all recipe epcs when server starts reading 
             table_read_vals = table_tags[epc]
             
@@ -431,9 +430,9 @@ def compareRfidCi():
             table_read_time = table_read_vals[1]
             
             #Compare the CI values + remove items from table_tags and cabinet_tags found 
-            if (table_epc_ci > 0.33 or table_read_time < 2):
+            if (table_epc_ci > 0.33 and table_read_time < 2):
                 #Tell the user that a distractor item is here
-                print("Distractor found ")
+                print("Distractor item: " + str(epc) +" found on table")
                 
                 #Probably want to break here or something to get the process started again?
                 #Return or break?
@@ -691,22 +690,18 @@ while True:
                 #Eventually may change format of data being sent from client to server... For now just add the epc to the clients dictionary if it isn't there already 
                 #cabinet_set.add(epc)
             elif(table_ci_regex and table_read==False):
-                print("Table CI read")
                 #Should return a map of EPC's and their CI avg and last read time {EPC : [CI_AVG, LAST_READ_TIME]}
                 epcs = TABLEhandleCIResponse(table_ci_regex)
                 client_ci_list.update({'Table' : epcs})
                 table_read = True
-                print("Table CI read complete")
                 #Eventually may change format of data being sent from client to server... For now just add the epc to the clients dictionary if it isn't there already 
                 #Need to figure out what to do with EPC's and CI values after reading them in... This should be where the server maybe makes decisions based on CI values + CV..
                 #table_ci_set.add(epcs)
             elif(cabinet_ci_regex and cabinet_read==False):
-                print("Cabinet CI read")
                 #Should return list of epcs + CI values
                 epcs = CABINEThandleCIResponse(cabinet_ci_regex)
                 client_ci_list.update({'Cabinet' : epcs}) 
                 cabinet_read = True
-                print("Cabinet CI read complete")
             elif data.decode('utf-8') == "Table Reader Connected":
                 window["-EventLog-"].print(f"Connected to Table Reader @ {client_address}")
                 
