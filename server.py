@@ -10,6 +10,7 @@ from netifaces import interfaces, ifaddresses, AF_INET
 import re
 import numpy as np
 from multiprocessing import shared_memory
+from shared_memory_dict import SharedMemoryDict
 
 #Initializing global vars
 
@@ -22,6 +23,7 @@ client_ci_list = {}
 
 #Shared memory region
 shm = None 
+shm_dict = SharedMemoryDict(name='cvConfidenceDict', size=1024)
 
 #Tracks if shared memory region is open or not 
 region_bool = False
@@ -171,6 +173,7 @@ def connectCV():
        shm.close()
        region_bool = not region_bool
     else:
+        
         shm = shared_memory.SharedMemory(name="shmemseg", create=False, size=np.zeros(8, dtype=np.float64).nbytes)
         region_bool = not region_bool
         cv_timer = 0
@@ -341,7 +344,7 @@ def compareRfidCi():
     
     #Use this as a last resort if don't see any Ci value?
     # CV TURNED OFF!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    cv_list = client_ci_list['CV']
+    # cv_list = client_ci_list['CV']
 
     #Looping through items in the recipe, then removing them from the table/cabinet tag lists to determine the distractors left over
     
@@ -390,23 +393,35 @@ def compareRfidCi():
             #Check the CV here to see if possible readers are not reading 
             #Then if the item isn't detected by the CV, output a message saying its missing and break or continue?
             #Get the item name from the epc
-            item_name = item_dictionary.get(epc)
-           
+
             #Boolean for tracking if an item is missing or not for the CV
             missing = True
+            item_name = item_dictionary.get(epc)
+            print(item_name)
+            if shm_dict[item_name] > 0.0:
+                print("CV Detected Item! ")
+                table_set.add(item_dictionary.get(epc))
+                #table_tags.remove(epc)
+                #cabinet_tags.remove(epc)
+                del table_tags[epc]
+                del cabinet_tags[epc]
+                missing = False
+                
+           
+           
            
             #Loop through the items that the CV sees 
-            for cv_item in cv_list:
-                print('CV Item CI: ' + str(cv_item))
+            # for cv_item in cv_list:
+            #     print('CV Item CI: ' + str(cv_item))
 
-                #IF the CV detects the item at this point, mark it as there...
-                if cv_item[0] == item_name and cv_item[1] > 0.0:
-                    print("CV Detected Item! ")
-                    table_set.add(item_dictionary.get(epc))
-                    table_tags.remove(epc)
-                    cabinet_tags.remove(epc)
-                    missing = False
-                    break
+            #     #IF the CV detects the item at this point, mark it as there...
+            #     if cv_item[0] == item_name and cv_item[1] > 0.0:
+            #         print("CV Detected Item! ")
+            #         table_set.add(item_dictionary.get(epc))
+            #         table_tags.remove(epc)
+            #         cabinet_tags.remove(epc)
+            #         missing = False
+            #         break
 
             #Have the speaker tell the user that the item is missing 
             if missing:

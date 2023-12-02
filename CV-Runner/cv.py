@@ -11,6 +11,7 @@ import numpy as np
 import copy
 import time
 import signal
+from shared_memory_dict import SharedMemoryDict
 
 #set os env for objective C
 os.environ['OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = "1"
@@ -47,6 +48,11 @@ def signal_handler(sig, frame):
 classList = ["Spoon", "Bowl", "Measuring cup", "Spatula", "Salt tin", "Pan", "Salt and pepper shakers", "Oatmeal box"]
 items = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 counter = 1
+
+#pickled dict
+confidences = SharedMemoryDict(name='cvConfidenceDict', size=1024)
+for i in classList:
+    confidences[i] = 0.0
 
 #empty frame for shape
 current_frame = np.zeros((720, 1280, 3), np.uint8)
@@ -149,9 +155,17 @@ if pid > 0 :
                 #display for testing
                 print(buffer) 
 
+                #add to dict
+                for i, name in enumerate(classList):
+                    confidences[name] = items[i]
+
+                #showme
+                for name in classList:
+                    print(confidences[name])
+
                 #reset local segment
                 items = items - 0.05
-                
+
                 for i in range(len(items)):
                     if items[i] < 0:
                         items[i] = 0.0
