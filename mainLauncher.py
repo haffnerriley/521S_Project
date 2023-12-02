@@ -102,7 +102,7 @@ time.sleep(5)
 mem_checker = threading.Thread(target=check_segments, args=())
 mem_checker.start()
 
-if option == "C":
+if option == "P":
     #start the messages
     Print_Buffer.__post_message__("Welcome to whatever we end up calling this abomination. Type start and hit enter when you are ready to begin")
 

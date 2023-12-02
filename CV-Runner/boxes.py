@@ -36,9 +36,13 @@ while True:
                     classname = "Salt tin"
                 case "Frying pan":
                     classname = "Pan"
+                case "Mixing bowl":
+                    classname = "Bowl"
+                case "Coffee cup":
+                    classname = "Measuring cup"
 
             #if not a class we want, skip class
-            if classname not in classList:
+            if 1==2:#classname not in classList:
                 continue
 
             annotator.box_label(b, classname)
