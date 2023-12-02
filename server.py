@@ -8,9 +8,14 @@ import threading
 import requests
 from netifaces import interfaces, ifaddresses, AF_INET
 import re
+import sys
 import numpy as np
 from multiprocessing import shared_memory
 from shared_memory_dict import SharedMemoryDict
+
+#import the class
+sys.path.append('Voice-Buffer/')
+from voiceClass import *
 
 #Initializing global vars
 
