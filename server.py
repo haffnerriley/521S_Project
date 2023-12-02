@@ -341,7 +341,7 @@ def compareRfidCi():
     
     #Use this as a last resort if don't see any Ci value?
     # CV TURNED OFF!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-    # cv_list = client_ci_list['CV']
+    cv_list = client_ci_list['CV']
 
     #Looping through items in the recipe, then removing them from the table/cabinet tag lists to determine the distractors left over
     
@@ -386,7 +386,7 @@ def compareRfidCi():
             return
         else:
             print("CV handled; continuing(missing)")
-            continue
+            
             #Check the CV here to see if possible readers are not reading 
             #Then if the item isn't detected by the CV, output a message saying its missing and break or continue?
             #Get the item name from the epc
@@ -436,7 +436,7 @@ def compareRfidCi():
                 
                 #Probably want to break here or something to get the process started again?
                 #Return or break?
-                break
+                return
 
             elif (table_epc_ci < 0.33 or table_read_time > 2):
                 #Continue as usual. Item maybe moved?
