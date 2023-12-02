@@ -45,7 +45,7 @@ def signal_handler(sig, frame):
 #frying pan -> 6
 #Salt and pepper shaker ->7
 classList = ["Spoon", "Bowl", "Measuring cup", "Spatula", "Salt tin", "Pan", "Salt and pepper shakers", "Oatmeal box"]
-items = np.array([100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0])
+items = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
 counter = 1
 
 #empty frame for shape
@@ -73,7 +73,7 @@ if pid > 0 :
         while True:
 
             #sleep
-            time.sleep(1)
+            time.sleep(0.5)
 
             #grab frame from shared memory
             current_frame_grabbed = np.ndarray(current_frame.shape, dtype=current_frame.dtype, buffer=shm_cam.buf)
@@ -83,7 +83,7 @@ if pid > 0 :
             outputs = model.predict(pil_image)
 
             #Scalable for multiple images to be processed at the same time (AKA more cameras = more better)
-            os.system('clear')
+            #os.system('clear')
             for output in outputs:
 
                 #get boxes
@@ -117,21 +117,21 @@ if pid > 0 :
                         #update local shmem mirror
                         match classname:
                             case "Spoon":
-                                items[0] += confidence
+                                items[0] = confidence
                             case "Bowl":
-                                items[1] += confidence
+                                items[1] = confidence
                             case "Measuring cup":
-                                items[2] += confidence
+                                items[2] = confidence
                             case "Spatula":
-                                items[3] += confidence
+                                items[3] = confidence
                             case "Oatmeal box":
-                                items[4] += confidence
+                                items[4] = confidence
                             case "Oatmeal tin":
-                                items[5] += confidence
+                                items[5] = confidence
                             case "Pan":
-                                items[6] += confidence
+                                items[6] = confidence
                             case "Salt and pepper shakers":
-                                items[7] += confidence
+                                items[7] = confidence
 
                         #if not a class we want, skip class
                         if classname not in classList:
@@ -150,7 +150,12 @@ if pid > 0 :
                 print(buffer) 
 
                 #reset local segment
-                items = np.array([0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0])
+                items = items - 0.05
+                
+                for i in range(len(items)):
+                    if items[i] < 0:
+                        items[i] = 0.0
+
                 counter = 1
 
     #close the memory segment on cntrl c
@@ -188,7 +193,7 @@ else:
                 break
             
             #store frame in shared memory
-            if frame_counter == 20:
+            if frame_counter == 10:
                 frame_counter = 0
 
                 #load frame segment
