@@ -376,7 +376,8 @@ def compareRfidCi():
             del table_tags[epc]
             del cabinet_tags[epc]
             #cabinet_tags.remove(epc)
-            print("Item: " +str(epc)+ " found on table! YAY!")
+            Print_Buffer.__post_message_async__("Item " + str(item_dictionary.get(epc))+ " found on table")
+            # print("Item: " +str(epc)+ " found on table! YAY!")
         elif (cabinet_epc_ci > 0.25 or cabinet_read_time < 3) and (table_epc_ci < 0.25 or table_read_time > 3):
             #If the cabinet epc ci value is at least 25% confident and read time within last 4s and table reader doesn't detect 
             #cabinet_set.add(recipe_map[epc])
@@ -384,7 +385,8 @@ def compareRfidCi():
             #cabinet_tags.remove(epc)
 
             #Tell the user that the item is in their cabinet 
-            print("Recipe item: " + str(epc) + " found in cabinet!")
+            Print_Buffer.__post_message_async__("Item " + str(item_dictionary.get(epc))+ " found in cabinet")
+            #print("Recipe item: " + str(epc) + " found in cabinet!")
             #Return or break
             return
         else:
@@ -397,7 +399,7 @@ def compareRfidCi():
             #Boolean for tracking if an item is missing or not for the CV
             missing = True
             item_name = item_dictionary.get(epc)
-            print(item_name)
+            #print(item_name)
             if shm_dict[item_name] > 0.0:
                 print("CV Detected Item! ")
                 table_set.add(item_dictionary.get(epc))
