@@ -390,11 +390,11 @@ def compareRfidCi():
             #Check the CV here to see if possible readers are not reading 
             #Then if the item isn't detected by the CV, output a message saying its missing and break or continue?
             #Get the item name from the epc
-            item_name = recipe_map[epc] 
+            item_name = item_dictionary.get(epc)
            
             #Boolean for tracking if an item is missing or not for the CV
             missing = True
-
+           
             #Loop through the items that the CV sees 
             for cv_item in cv_list:
                 print('CV Item CI: ' + str(cv_item))
@@ -402,7 +402,7 @@ def compareRfidCi():
                 #IF the CV detects the item at this point, mark it as there...
                 if cv_item[0] == item_name and cv_item[1] > 0.0:
                     print("CV Detected Item! ")
-                    table_set.add(recipe_map[epc])
+                    table_set.add(item_dictionary.get(epc))
                     table_tags.remove(epc)
                     cabinet_tags.remove(epc)
                     missing = False
