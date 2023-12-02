@@ -21,6 +21,35 @@ sys.path.insert(0, os.getcwd() + "/CV-Runner")
 sys.path.insert(0, os.getcwd() + "/helpers")
 from voiceClass import *
 
+def check_segments():
+
+    while True:
+        items = np.array([100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0])
+        current_frame = np.zeros((720, 1280, 3), np.uint8)
+
+        if (option == "C"):
+            try:
+                shm_voice_buffer = shared_memory.SharedMemory(name=Print_Buffer.voicesegmentkey, create=False, size=sys.getsizeof(Print_Buffer.tempVoicebuffer))
+                shm_buffer_ptr = shared_memory.SharedMemory(name=Print_Buffer.pointerbufferkey, create=False, size=sys.getsizeof(Print_Buffer.tempBufferPointer))
+                shm_server = shared_memory.SharedMemory(name="shmemseg", create=False, size=items.nbytes)
+                shm_cam = shared_memory.SharedMemory(name="shcamseg", create=False, size=current_frame.nbytes)
+            except Exception as e:
+                print("Something went wrong checking up on the shared memory: " +  str(e))
+                print("Closing all segments and killing all running sub-processes.....")
+                for pid in pids:
+                    os.kill(pid, signal.SIGINT)
+                exit(-1)
+        else:
+            try:
+                shm_voice_buffer = shared_memory.SharedMemory(name=Print_Buffer.voicesegmentkey, create=False, size=sys.getsizeof(Print_Buffer.tempVoicebuffer))
+                shm_buffer_ptr = shared_memory.SharedMemory(name=Print_Buffer.pointerbufferkey, create=False, size=sys.getsizeof(Print_Buffer.tempBufferPointer))
+            except Exception as e:
+                print("Something went wrong checking up on the shared memory: " +  str(e))
+                print("Closing all segments and killing all running sub-processes.....")
+                for pid in pids:
+                    os.kill(pid, signal.SIGINT)
+                exit(-1)
+
 def launch_process(pythonEnv, Path, i):
 
     #if we want to use a venv
@@ -70,30 +99,31 @@ except:
 
 #make sure their mem segments stay open and kill if they don't
 time.sleep(5)
-while True:
+mem_checker = threading.Thread(target=check_segments, args=())
+mem_checker.start()
 
-    items = np.array([100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0, 100.0])
-    current_frame = np.zeros((720, 1280, 3), np.uint8)
+if option == "C":
+    #start the messages
+    Print_Buffer.__post_message__("Welcome to whatever we end up calling this abomination. Type start and hit enter when you are ready to begin")
 
-    if (option == "C"):
-        try:
-            shm_voice_buffer = shared_memory.SharedMemory(name=Print_Buffer.voicesegmentkey, create=False, size=sys.getsizeof(Print_Buffer.tempVoicebuffer))
-            shm_buffer_ptr = shared_memory.SharedMemory(name=Print_Buffer.pointerbufferkey, create=False, size=sys.getsizeof(Print_Buffer.tempBufferPointer))
-            shm_server = shared_memory.SharedMemory(name="shmemseg", create=False, size=items.nbytes)
-            shm_cam = shared_memory.SharedMemory(name="shcamseg", create=False, size=current_frame.nbytes)
-        except Exception as e:
-            print("Something went wrong checking up on the shared memory: " +  str(e))
-            print("Closing all segments and killing all running sub-processes.....")
-            for pid in pids:
-                os.kill(pid, signal.SIGINT)
-            exit(-1)
+    input()
+
+    Print_Buffer.__post_message__("Please select which recipe you are going to be making. Type the selection in the terminal and press Enter")
+
+    selection = input()
+
+    Print_Buffer.__post_message__("You have selected oatmeal. To make oatmeal, you will need: one bowl, one spoon, one pan, one box of oatmeal, one salt container and one measuring cup")
+    Print_Buffer.__post_message__("When you have placed all the items on the table, type ready into the terminal and press enter.")
+
+    input()
+    
+    #stub
+    #get items 
+    if (1 != 1):
+        Print_Buffer.__post_message__("You do not have all the items needed or you have items that should be removed. You still need a stub")
+
     else:
-        try:
-            shm_voice_buffer = shared_memory.SharedMemory(name=Print_Buffer.voicesegmentkey, create=False, size=sys.getsizeof(Print_Buffer.tempVoicebuffer))
-            shm_buffer_ptr = shared_memory.SharedMemory(name=Print_Buffer.pointerbufferkey, create=False, size=sys.getsizeof(Print_Buffer.tempBufferPointer))
-        except Exception as e:
-            print("Something went wrong checking up on the shared memory: " +  str(e))
-            print("Closing all segments and killing all running sub-processes.....")
-            for pid in pids:
-                os.kill(pid, signal.SIGINT)
-            exit(-1)
+        Print_Buffer.__post_message__("You have all the required items! You are now ready to make oatmeal.")
+
+#this will await the memory checker no matter what
+mem_checker.join()
