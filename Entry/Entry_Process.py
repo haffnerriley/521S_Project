@@ -18,7 +18,8 @@ from voiceClass import *
 #open the shared memory segments
 vector_of_tags = np.array(["NULL" * 10] * 100)
 shm_server = shared_memory.SharedMemory(name="shmemseg", create=True, size=vector_of_tags.nbytes)
-shm_server[:] = vector_of_tags[:]
+buffer = np.ndarray(vector_of_tags.shape, dtype=vector_of_tags.dtype, buffer=shm_server.buf)
+buffer[:] = vector_of_tags[:]
 
 def signal_handler(sig, frame):
 
@@ -39,7 +40,7 @@ def scan_side(tags):
     time.sleep(2)
 
     #enter the found tag into the set
-    vector_of_tags[:] = shm_server[:]
+    vector_of_tags[:] = buffer[:]
     for item in vector_of_tags:
         if item[0:4] != "NULL":
             tags.add(item)
