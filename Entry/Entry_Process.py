@@ -17,6 +17,7 @@ from voiceClass import *
 
 #open the shared memory segments
 vector_of_tags = np.array(["NULL" * 10] * 100)
+vector_of_cmds = np.array(["READ" * 10] * 100)
 shm_server = shared_memory.SharedMemory(name="shmemseg", create=True, size=vector_of_tags.nbytes)
 shm_server[:] = vector_of_tags[:]
 
@@ -34,7 +35,7 @@ def scan_side(tags):
 
     #send a request to read
     #STUB
-
+    shm_server = np.ndarray(vector_of_tags.shape, dtype=vector_of_tags.dtype, buffer=shm_server.buf)
     #give it 2 seconds to get values
     time.sleep(2)
 
