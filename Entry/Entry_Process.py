@@ -35,7 +35,7 @@ def scan_side(tags):
 
     #send a request to read
     #STUB
-    shm_server = np.ndarray(vector_of_tags.shape, dtype=vector_of_tags.dtype, buffer=shm_server.buf)
+    shm_server = np.ndarray(vector_of_cmds.shape, dtype=vector_of_cmds.dtype, buffer=shm_server.buf)
     #give it 2 seconds to get values
     time.sleep(2)
 
