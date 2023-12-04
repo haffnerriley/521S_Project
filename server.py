@@ -738,6 +738,7 @@ while True:
         
         #Read from the clients
         try:
+            last_announcement_time = time.time()
             #every 10 seconds (could change to number of reads)
             if time.time() - last_announcement_time >= 10:
                 if(len(recipe_table_set) == len(set(list(recipe_map))) and len(distactor_table_set) == 0): ##ten or number of items in recipe
