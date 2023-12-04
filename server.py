@@ -740,8 +740,9 @@ while True:
         try:
             #every 10 seconds (could change to number of reads)
             if time.time() - last_announcement_time >= 10:
-                if(len(recipe_table_set) == 10 and len(distactor_table_set) == 0): ##ten or number of items in recipe
+                if(len(recipe_table_set) == len(set(list(recipe_map))) and len(distactor_table_set) == 0): ##ten or number of items in recipe
                     Print_Buffer.__post_message_async__("All required items found with no distractors")
+                
                 # Announce the number of recipe items on table and distractors on table
                 else:
                     Print_Buffer.__post_message_async__("You have " + str(len(recipe_table_set)) + "required items and " +  str(len(distactor_table_set)) +  " distractors on the table")
