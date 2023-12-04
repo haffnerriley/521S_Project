@@ -111,7 +111,7 @@ initial_table = False
 # Define the GUI layout
 layout = [
     [sg.Text("Set Read Power (0-2700):"), sg.InputText(key="reader-power", size=(15,1)),sg.Text("Connected Clients:"), sg.Combo(connected_readers, default_value=selected_reader, key="cur-reader",size=(35,1), enable_events=True)],
-    [sg.Text("EPC to Update:"), sg.Combo(epcs_to_update, default_value=epc_to_update, key="epc",size=(25,1), enable_events=True), sg.Text("Items in Kitchen:"), sg.Combo(item_dictionary, default_value=epc_in_kitchen, key="epc-inventory",size=(25,1), enable_events=True)],
+    [sg.Text("EPC(s) to Update:"), sg.Combo(epcs_to_update, default_value=epc_to_update, key="epc",size=(25,1), enable_events=True), sg.Text("Items in Kitchen:"), sg.Combo(item_dictionary, default_value=epc_in_kitchen, key="epc-inventory",size=(25,1), enable_events=True)],
     [sg.Text("New Item Name:"), sg.InputText(key="item-name", size=(20,1)), sg.Text("Items in Recipe:"), sg.Combo(items_in_recipe, default_value=default_item, key="recipe-items", size=(25,1))],
     [sg.Button("Connect CV", key="cv-btn"), sg.Button("Set Power"), sg.Button("Find Item"), sg.Button("Update Item"), sg.Button("Start Server", key="server-btn"), sg.Button("Start Reading", key="server-read"),sg.Button("Add Item", key="add-item"), sg.Button("Remove Item", key="remove-item")],
     [sg.Multiline("", size=(50, 10), key="-EventLog-", disabled=True)]
@@ -147,6 +147,7 @@ def handleFindResponse(regex):
     global epc_to_update
     global window
     global item_dictionary
+    global epcs_to_update
     #Splitting the response up from the client find command 
     data_find = regex.group(1)
     
@@ -155,6 +156,7 @@ def handleFindResponse(regex):
 
     #Finding all occurences of 24 byte EPCS in the client response
     epc_list = split_pattern.findall(data_find)
+    epcs_to_update = epc_list
     window["-EventLog-"].print(f"Found Items: {epc_list}\n")
     
     #Set a default EPC in the dropdown menu 
@@ -476,7 +478,7 @@ while True:
     
     #Can change the timeout if we want to have a faster UI
     event, values = window.read(timeout=250)
-    print(np.ndarray((100,), dtype=np.float64, buffer=shm.buf))
+    #print(np.ndarray((100,), dtype=np.float64, buffer=shm.buf))
     #Close the server socket if exit button pressed and server socket still open
     if event == sg.WINDOW_CLOSED:
         if server_status:
@@ -558,8 +560,10 @@ while True:
             window["-EventLog-"].print(f"Please input a new Item name!\n")
             continue
         
-        #Add the item to the dictionary with its EPC and given name
-        item_dictionary.update({values["epc"] : values["item-name"]})
+        #Add the item to the dictionary with its EPCs and given name
+        for epc in epcs_to_update:
+            item_dictionary.update({epc : values["item-name"]})
+        
         epc_in_kitchen = values["item-name"]
         window["epc-inventory"].update(value=str(epc_in_kitchen), values=list(item_dictionary.values()))
         window["-EventLog-"].print(f"Item Updated! Items in inventory: {item_dictionary}\n")
