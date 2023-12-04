@@ -127,8 +127,8 @@ def initializeKitchen():
     global item_dictionary
 
     old_data = {}
-    if os.path.isfile('data.json'):
-        old_data = readJSONFile("data.json")
+    if os.path.isfile('kitchen.json'):
+        old_data = readJSONFile("kitchen.json")
     if(len(old_data) > 0):
         item_dictionary = old_data
         epc_in_kitchen = list(item_dictionary.values())[0]
@@ -497,14 +497,14 @@ def save_to_database(tags):
     
     old_data = {}
 
-    if os.path.isfile('data.json'):
-        old_data = readJSONFile("data.json")
+    if os.path.isfile('kitchen.json'):
+        old_data = readJSONFile("kitchen.json")
         
     old_data.update(tags)
 
-    writeJSONFile("data.json", old_data)
+    writeJSONFile("kitchen.json", old_data)
 
-    print("Save_To_Database: data.json")
+    print("Save_To_Database: kitchen.json")
 
 initializeKitchen()
 # Event loop to handle GUI Client/Server Communication
