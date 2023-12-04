@@ -12,6 +12,7 @@ import sys
 import numpy as np
 from multiprocessing import shared_memory
 from shared_memory_dict import SharedMemoryDict
+import json
 
 #import the class
 sys.path.append('Voice-Buffer/')
@@ -121,6 +122,17 @@ layout = [
 window = sg.Window("Smart Kitchen Server Application", layout, resizable=True, finalize=True)
 
 
+
+def initializeKitchen():
+    global item_dictionary
+
+    old_data = {}
+    if os.path.isfile('data.json'):
+        old_data = readJSONFile("data.json")
+    if(len(old_data) > 0):
+        item_dictionary = old_data
+        epc_in_kitchen = list(item_dictionary.values())[0]
+        window["epc-inventory"].update(value=str(epc_in_kitchen), values=list(item_dictionary.values()))
 #Function to find the IP address of computer running the server program
 def findIP():
     global ipaddr
@@ -472,7 +484,29 @@ def compareRfidCi():
     print("All items found!")
 
 
+def writeJSONFile(fileName, data):
+    with open(fileName, 'w') as fp:
+        json.dump(data, fp)
+ 
+def readJSONFile(fileName):
+    f = open(fileName)
+    return json.load(f)
 
+#stubbed save method
+def save_to_database(tags):
+    
+    old_data = {}
+
+    if os.path.isfile('data.json'):
+        old_data = readJSONFile("data.json")
+        
+    old_data.update(tags)
+
+    writeJSONFile("data.json", old_data)
+
+    print("Save_To_Database: data.json")
+
+initializeKitchen()
 # Event loop to handle GUI Client/Server Communication
 while True:
     
@@ -565,6 +599,8 @@ while True:
             item_dictionary.update({epc : values["item-name"]})
         
         epc_in_kitchen = values["item-name"]
+
+        save_to_database(item_dictionary)
         window["epc-inventory"].update(value=str(epc_in_kitchen), values=list(item_dictionary.values()))
         window["-EventLog-"].print(f"Item Updated! Items in inventory: {item_dictionary}\n")
     #Starts the server up
