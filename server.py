@@ -19,6 +19,25 @@ from voiceClass import *
 
 #Initializing global vars
 
+#speak_status dict 
+#assume each item starts in the cabinet (-1)
+#would be better to set when you set items in update
+
+# speaks_status = {
+#     "Spoon" : -1
+#     "Bowl" : -1
+#     "Measuring cup" : -1
+#     "spatula" : -1
+#     "oatmeal box" : -1
+#     "oatmeal tin" : -1
+#     "frying pan" : -1
+#     "Salt and pepper shaker" : -1
+# }
+
+recipe_table_set = set()
+recipe_cabinet_set = set()
+distactor_table_set = set()
+
 #Storing the reader turn
 table_read = False
 cabinet_read = False
@@ -198,6 +217,7 @@ def addItemToRecipe(item):
         for key, value in item_dictionary.items():
             if default_item == value:
                 recipe_map.append(key)
+                #maybe need to initialize items to cabinet set?
         window["recipe-items"].update(value=str(default_item), values=items_in_recipe)
 
 #Function that will remove the selected item in the Items in Recipe dropdown from the Recipe being monitored 
@@ -337,6 +357,9 @@ def TABLEhandleCIResponse(regex):
     # return confident_tags
 
 
+
+
+
 #Function to ultimately compare the RFID values from both readers + the CV and return the set of items on the table that were detected 
 def compareRfidCi():
     global client_ci_list
@@ -381,7 +404,20 @@ def compareRfidCi():
             del table_tags[epc]
             del cabinet_tags[epc]
             #cabinet_tags.remove(epc)
-            Print_Buffer.__post_message_async__("Item " + str(item_dictionary.get(epc))+ " found on table")
+            item = str(item_dictionary.get(epc))
+
+            if item in recipe_cabinet_set:
+                recipe_cabinet_set.remove(item)
+                recipe_table_set.add(item)
+            
+            # #coming from cabinet and not spoken for?
+            # if(speak_status.get(item) == -1):
+            #     Print_Buffer.__post_message_async__("Item " + item + " found on table")
+            #     speaks_status[item] = 1 ## now it has been spoken
+                
+            
+
+
             # print("Item: " +str(epc)+ " found on table! YAY!")
         elif (cabinet_epc_ci > 0.25 or cabinet_read_time < 3) and (table_epc_ci < 0.25 or table_read_time > 3):
             #If the cabinet epc ci value is at least 25% confident and read time within last 4s and table reader doesn't detect 
@@ -389,8 +425,20 @@ def compareRfidCi():
             #table_tags.remove(epc)
             #cabinet_tags.remove(epc)
 
+            item = str(item_dictionary.get(epc))
+
+            if item in recipe_table_set:
+                recipe_table_set.remove(item)
+                recipe_cabinet_set.add(item)
+            
+            #is it coming from the table? well now set it to being in the cabinet
+            # if(speak_status.get(item) != -1):
+            #     speaks_status[item] = -1
+
+
             #Tell the user that the item is in their cabinet 
-            Print_Buffer.__post_message_async__("Item " + str(item_dictionary.get(epc))+ " found in cabinet")
+            #Print_Buffer.__post_message_async__("Item " + str(item_dictionary.get(epc))+ " found in cabinet")
+
             #print("Recipe item: " + str(epc) + " found in cabinet!")
             #Return or break
             return
@@ -413,6 +461,9 @@ def compareRfidCi():
                 del table_tags[epc]
                 del cabinet_tags[epc]
                 missing = False
+
+                #for speaking stuff
+                recipe_table_set.add(item_name)
                 
            
            
@@ -454,14 +505,21 @@ def compareRfidCi():
             #Compare the CI values + remove items from table_tags and cabinet_tags found 
             if (table_epc_ci > 0.33 and table_read_time < 2):
                 #Tell the user that a distractor item is here
-                print("Distractor item: " + str(epc) +" found on table")
+                #print("Distractor item: " + str(epc) +" found on table")
                 
+                #add item to distactor table
+                distactor_table_set.add(item_dictionary.get(epc))
+
+
                 #Probably want to break here or something to get the process started again?
                 #Return or break?
                 return
 
+            
+
             elif (table_epc_ci < 0.33 or table_read_time > 2):
                 #Continue as usual. Item maybe moved?
+                distactor_table_set.remove(item_dictionary.get(epc))
                 continue
                 
 
@@ -680,6 +738,23 @@ while True:
         
         #Read from the clients
         try:
+            #every 10 seconds (could change to number of reads)
+            if time.time() - last_announcement_time >= 10:
+                if(len(recipe_table_set) == 10 and len(distactor_table_set) == 0): ##ten or number of items in recipe
+                    Print_Buffer.__post_message_async__("All required items found with no distractors")
+                # Announce the number of recipe items on table and distractors on table
+                else:
+                    Print_Buffer.__post_message_async__("You have " + str(len(recipe_table_set)) + "required items and " +  str(len(distactor_table_set)) +  " distractors on the table")
+                    remove_items = "Remove "
+                    for item in distactor_table_set:
+                        remove_items += (" " + item) 
+
+                    Print_Buffer.__post_message_async__(remove_items)
+
+                # Reset the timer
+                last_announcement_time = time.time()
+
+
             data, client_address = server_socket.recvfrom(1024)
             
             #TRF denotes a Table Reader Find Response packet
@@ -765,7 +840,6 @@ while True:
             #Prints any messages from the client that don't fall under one of these above conditions
             else:
                 window["-EventLog-"].print(f"Client says: {data.decode('utf-8')} \n") 
-               
                
 
         except:
