@@ -476,7 +476,7 @@ while True:
     
     #Can change the timeout if we want to have a faster UI
     event, values = window.read(timeout=250)
-    
+    print(np.ndarray((100,), dtype=np.float64, buffer=shm.buf))
     #Close the server socket if exit button pressed and server socket still open
     if event == sg.WINDOW_CLOSED:
         if server_status:

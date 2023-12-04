@@ -43,6 +43,7 @@ def check_segments():
             try:
                 shm_voice_buffer = shared_memory.SharedMemory(name=Print_Buffer.voicesegmentkey, create=False, size=sys.getsizeof(Print_Buffer.tempVoicebuffer))
                 shm_buffer_ptr = shared_memory.SharedMemory(name=Print_Buffer.pointerbufferkey, create=False, size=sys.getsizeof(Print_Buffer.tempBufferPointer))
+                #shm_server = shared_memory.SharedMemory(name="shmemseg", create=False, size=items.nbytes)
             except Exception as e:
                 print("Something went wrong checking up on the shared memory: " +  str(e))
                 print("Closing all segments and killing all running sub-processes.....")
