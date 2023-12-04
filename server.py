@@ -106,6 +106,13 @@ server_status = False
 #Status of server reading from RFID modules 
 server_read_status = False
 
+#voice sets
+recipe_table_set = set()
+recipe_cabinet_set = set()
+distactor_table_set = set()
+
+
+
 #Booleans to track if the initial CI values for the table and cabinet are being recieved
 initial_cabinet = False
 initial_table = False
@@ -133,6 +140,7 @@ def initializeKitchen():
         item_dictionary = old_data
         epc_in_kitchen = list(item_dictionary.values())[0]
         window["epc-inventory"].update(value=str(epc_in_kitchen), values=list(item_dictionary.values()))
+
 #Function to find the IP address of computer running the server program
 def findIP():
     global ipaddr
@@ -181,6 +189,8 @@ def handleFindResponse(regex):
         if(selected_item != None):
             epc_to_update = selected_item
         window["-EventLog-"].print(f"Selecting item: {epc_to_update}\n")
+    
+    return epc_list
 
 #Function that handles connecting to the shared memory region 
 def connectCV():
@@ -395,16 +405,28 @@ def compareRfidCi():
             del table_tags[epc]
             del cabinet_tags[epc]
             #cabinet_tags.remove(epc)
-            Print_Buffer.__post_message_async__("Item " + str(item_dictionary.get(epc))+ " found on table")
+
+            item = str(item_dictionary.get(epc))
+
+            if item in recipe_cabinet_set:
+                recipe_cabinet_set.remove(item)
+                recipe_table_set.add(item)
+
+            #Print_Buffer.__post_message_async__("Item " + str(item_dictionary.get(epc))+ " found on table")
             # print("Item: " +str(epc)+ " found on table! YAY!")
         elif (cabinet_epc_ci > 0.25 or cabinet_read_time < 3) and (table_epc_ci < 0.25 or table_read_time > 3):
             #If the cabinet epc ci value is at least 25% confident and read time within last 4s and table reader doesn't detect 
             #cabinet_set.add(recipe_map[epc])
             #table_tags.remove(epc)
             #cabinet_tags.remove(epc)
+            item = str(item_dictionary.get(epc))
+
+            if item in recipe_table_set:
+                recipe_table_set.remove(item)
+                recipe_cabinet_set.add(item)
 
             #Tell the user that the item is in their cabinet 
-            Print_Buffer.__post_message_async__("Item " + str(item_dictionary.get(epc))+ " found in cabinet")
+            #Print_Buffer.__post_message_async__("Item " + str(item_dictionary.get(epc))+ " found in cabinet")
             #print("Recipe item: " + str(epc) + " found in cabinet!")
             #Return or break
             return
@@ -476,6 +498,7 @@ def compareRfidCi():
 
             elif (table_epc_ci < 0.33 or table_read_time > 2):
                 #Continue as usual. Item maybe moved?
+                distactor_table_set.remove(item_dictionary.get(epc))
                 continue
                 
 
@@ -491,6 +514,70 @@ def writeJSONFile(fileName, data):
 def readJSONFile(fileName):
     f = open(fileName)
     return json.load(f)
+
+def jump_to_entry():
+    messages = [
+        "Entring object entry mode. Please place tracking stickers on the desired item and place the item in front of the sensor.",
+        "Rotate object so a different tag is facing the sensor again and wait 5 seconds",
+        "Rotate object again so a different tag is facing the sensor again and wait 5 seconds",
+        "Rotate object one last time so a different tag is facing the sensor again and wait 5 seconds",
+        "Object successfully saved."
+    ]
+
+    tags = set()
+
+    for message in messages:
+        
+        #speak
+        Print_Buffer.__post_message__(message)
+
+        #wait 
+        time.sleep(1)
+
+        #Check that a client is connected
+        if(reader_status == "disconnected"):
+            window["-EventLog-"].print(f"Please connect to reader first!\n")
+            continue
+    
+        #Attempting to send the selected client from the dropdown the Find command
+        try:
+            client_socket = values["cur-reader"]
+
+            #Grab the IP from the dictionary entry
+            for ip in client_socket:
+                client_selected= client_socket[ip]  
+            
+            #Send the command to the selected client
+            server_socket.sendto(b'Find', client_selected)
+        except:
+            window["-EventLog-"].print(f"Failed to start reading!\n")
+            continue
+        
+        time.sleep(2)
+        try:
+            data, client_address = server_socket.recvfrom(1024)
+            
+            #TRF denotes a Table Reader Find Response packet
+            table_find_regex = re.match(r'.*TRF(.*)', data.decode('utf-8'))
+
+            if(table_find_regex):
+                epc = handleFindResponse(table_find_regex)
+            
+            tags = tags.union(epc)
+        except:
+            continue
+    
+    #done write to file
+    print(tags)
+    for epc in tags:
+        tags_dict = {}
+        tags_dict[epc] = values["item-name"]
+        save_to_database(tags_dict)
+        item_dictionary.update({epc : values["item-name"]})
+    
+    epc_in_kitchen = values["item-name"]
+    window["epc-inventory"].update(value=str(epc_in_kitchen), values=list(item_dictionary.values()))
+    window["-EventLog-"].print(f"Item Updated! Items in inventory: {item_dictionary}\n")
 
 #stubbed save method
 def save_to_database(tags):
@@ -558,6 +645,9 @@ while True:
     #Requests the selected client to read for items and return a list of the EPC values to use for updating
     elif event == "Find Item":
 
+        jump_to_entry()
+
+        '''
         #Check that a client is connected
         if(reader_status == "disconnected"):
             window["-EventLog-"].print(f"Please connect to reader first!\n")
@@ -576,6 +666,7 @@ while True:
         except:
             window["-EventLog-"].print(f"Failed to start reading!\n")
             continue
+        '''
     #Handles the tracking of items in the User's Kitchen or Inventory by mapping tag EPC's to Item names
     elif event == "Update Item":
         
@@ -720,6 +811,26 @@ while True:
         
         #Read from the clients
         try:
+
+            last_announcement_time = time.time()
+            #every 10 seconds (could change to number of reads)
+            if time.time() - last_announcement_time >= 10:
+                if(len(recipe_table_set) == len(set(list(recipe_map))) and len(distactor_table_set) == 0): ##ten or number of items in recipe
+                    Print_Buffer.__post_message_async__("All required items found with no distractors")
+                
+                # Announce the number of recipe items on table and distractors on table
+                else:
+                    Print_Buffer.__post_message_async__("You have " + str(len(recipe_table_set)) + "required items and " +  str(len(distactor_table_set)) +  " distractors on the table")
+                    remove_items = "Remove "
+                    for item in distactor_table_set:
+                        remove_items += (" " + item) 
+
+                    Print_Buffer.__post_message_async__(remove_items)
+
+                # Reset the timer
+                last_announcement_time = time.time()
+
+
             data, client_address = server_socket.recvfrom(1024)
             
             #TRF denotes a Table Reader Find Response packet
