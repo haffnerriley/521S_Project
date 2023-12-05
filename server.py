@@ -166,6 +166,21 @@ def findIP():
             ipaddr = addresses[0]
             server_address = (ipaddr, 12345)
 
+def testSpeech(cause):
+
+    global recipe_map
+    global recipe_table_set
+    global distactor_table_set
+
+    messages = ["You have " + str(len(recipe_table_set)) + "required items and " +  str(len(distactor_table_set)) +  " distractors on the table",
+        "All required items found with no distractors"
+                
+    ]
+
+    while 1 == 1:
+        Print_Buffer.__post_message_async__(messages[cause])
+        return
+
 def handleFindResponse(regex):
     global epc_to_update
     global window
@@ -228,9 +243,6 @@ def addItemToRecipe(item):
                 #assume items start in cabinet, add the string name of them to the recipe
                 recipe_cabinet_set.add(value) 
 
-            #else the item isnt in the recipe so add to distractors 
-            else:
-                #
         window["recipe-items"].update(value=str(default_item), values=items_in_recipe)
 
 #Function that will remove the selected item in the Items in Recipe dropdown from the Recipe being monitored 
@@ -375,6 +387,9 @@ def compareRfidCi():
     global client_ci_list
     global table_set
     global cabinet_set
+    global recipe_cabinet_set
+    global recipe_table_set
+    global distactor_table_set
 
     #make 3 seperate lists for table, cabinet, and CV
     table_tags = client_ci_list['Table']
@@ -420,6 +435,7 @@ def compareRfidCi():
             if item in recipe_cabinet_set:
                 recipe_cabinet_set.remove(item)
                 recipe_table_set.add(item)
+            recipe_table_set.add(item)
 
             #Print_Buffer.__post_message_async__("Item " + str(item_dictionary.get(epc))+ " found on table")
             print("Item: " + item + " found on table! YAY!")
@@ -434,11 +450,13 @@ def compareRfidCi():
                 recipe_table_set.remove(item)
                 recipe_cabinet_set.add(item)
 
+            recipe_cabinet_set.add(item)
+
             #Tell the user that the item is in their cabinet 
             #Print_Buffer.__post_message_async__("Item " + str(item_dictionary.get(epc))+ " found in cabinet")
             print("Recipe item: " + item + " found in cabinet!")
             #Return or break
-            return
+            break
         else:
             print("CV handling")
             
@@ -589,6 +607,71 @@ def jump_to_entry():
     epc_in_kitchen = values["item-name"]
     window["epc-inventory"].update(value=str(epc_in_kitchen), values=list(item_dictionary.values()))
     window["-EventLog-"].print(f"Item Updated! Items in inventory: {item_dictionary}\n")
+
+def jump_to_entry_voice():
+    messages = [
+        "Entring object entry mode. Please place tracking stickers on the desired item and place the item in front of the sensor.",
+        "Rotate object so a different tag is facing the sensor again and wait 5 seconds",
+        "Rotate object again so a different tag is facing the sensor again and wait 5 seconds",
+        "Rotate object one last time so a different tag is facing the sensor again and wait 5 seconds",
+        "Object successfully saved."
+    ]
+
+    tags = set()
+
+    for message in messages:
+        
+        #speak
+        Print_Buffer.__post_message__(message)
+
+        #wait 
+        time.sleep(1)
+
+        #Check that a client is connected
+        if(reader_status == "disconnected"):
+            window["-EventLog-"].print(f"Please connect to reader first!\n")
+            continue
+    
+        #Attempting to send the selected client from the dropdown the Find command
+        try:
+            client_socket = values["cur-reader"]
+
+            #Grab the IP from the dictionary entry
+            for ip in client_socket:
+                client_selected= client_socket[ip]  
+            
+            #Send the command to the selected client
+            server_socket.sendto(b'Find', client_selected)
+        except:
+            window["-EventLog-"].print(f"Failed to start reading!\n")
+            continue
+        
+        time.sleep(2)
+        try:
+            data, client_address = server_socket.recvfrom(1024)
+            
+            #TRF denotes a Table Reader Find Response packet
+            table_find_regex = re.match(r'.*TRF(.*)', data.decode('utf-8'))
+
+            if(table_find_regex):
+                epc = handleFindResponse(table_find_regex)
+            
+            tags = tags.union(epc)
+        except:
+            continue
+    
+    #done write to file
+    print(tags)
+    for epc in tags:
+        tags_dict = {}
+        tags_dict[epc] = values["item-name"]
+        save_to_database(tags_dict)
+        item_dictionary.update({epc : values["item-name"]})
+    
+    epc_in_kitchen = values["item-name"]
+    window["epc-inventory"].update(value=str(epc_in_kitchen), values=list(item_dictionary.values()))
+    window["-EventLog-"].print(f"Item Updated! Items in inventory: {item_dictionary}\n")
+
 
 #stubbed save method
 def save_to_database(tags):
@@ -828,30 +911,22 @@ while True:
             #every 10 seconds (could change to number of reads)
             if time.time() - last_announcement_time >= 10 and server_read_status:
                 print("doing check for speaking")
-                print("length recipe map:")
-                print(len(set(list(recipe_map))))
-                print("length recipe_table_set:")
-                print(len(recipe_table_set))
-                if(len(recipe_table_set) == len(set(list(recipe_map))) and len(distactor_table_set) == 0): ##ten or number of items in recipe
-                    Print_Buffer.__post_message_async__("All required items found with no distractors")
-                
-                # Announce the number of recipe items on table and distractors on table
-                else:
-                    print("conditions not met")
-                    print("recipe_table: ")
-                    print(recipe_table_set)
+                print(time.time())
+                print(last_announcement_time)
 
-                    print("distractor_table: ")
-                    print(distractor_table_set)
-                    Print_Buffer.__post_message_async__("You have " + str(len(recipe_table_set)) + "required items and " +  str(len(distactor_table_set)) +  " distractors on the table")
-                    remove_items = "Remove "
-                    for item in distactor_table_set:
-                        remove_items += (" " + item) 
-
-                    Print_Buffer.__post_message_async__(remove_items)
-
-                # Reset the timer
+                 # Reset the timer
                 last_announcement_time = time.time()
+                testSpeech(len(recipe_table_set) == len(set(list(recipe_map))) and len(distactor_table_set) == 0)
+                
+
+                print(",")
+                print(last_announcement_time)
+                #
+            
+
+                    
+
+               
 
 
             data, client_address = server_socket.recvfrom(1024)
