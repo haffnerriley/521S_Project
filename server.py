@@ -20,6 +20,9 @@ from voiceClass import *
 
 #Initializing global vars
 
+
+last_announcement_time = 0
+
 #Storing the reader turn
 table_read = False
 cabinet_read = False
@@ -413,7 +416,7 @@ def compareRfidCi():
                 recipe_table_set.add(item)
 
             #Print_Buffer.__post_message_async__("Item " + str(item_dictionary.get(epc))+ " found on table")
-            # print("Item: " +str(epc)+ " found on table! YAY!")
+            print("Item: " + item + " found on table! YAY!")
         elif (cabinet_epc_ci > 0.25 or cabinet_read_time < 3) and (table_epc_ci < 0.25 or table_read_time > 3):
             #If the cabinet epc ci value is at least 25% confident and read time within last 4s and table reader doesn't detect 
             #cabinet_set.add(recipe_map[epc])
@@ -427,11 +430,11 @@ def compareRfidCi():
 
             #Tell the user that the item is in their cabinet 
             #Print_Buffer.__post_message_async__("Item " + str(item_dictionary.get(epc))+ " found in cabinet")
-            #print("Recipe item: " + str(epc) + " found in cabinet!")
+            print("Recipe item: " + item + " found in cabinet!")
             #Return or break
             return
         else:
-            print("CV handled; continuing(missing)")
+            print("CV handling")
             
             #Check the CV here to see if possible readers are not reading 
             #Then if the item isn't detected by the CV, output a message saying its missing and break or continue?
@@ -475,7 +478,7 @@ def compareRfidCi():
     #Go through the leftover's (distractors) and figure out what items remain and where 
     if (len(table_tags) != 0):
         #Notify the user that a distractor was detected on the table 
-        #print("Distractors detected!")
+        print("Distractors detected!")
         
         for epc in list(table_tags):
             
@@ -491,7 +494,7 @@ def compareRfidCi():
             if (table_epc_ci > 0.33 and table_read_time < 2):
                 #Tell the user that a distractor item is here
                 print("Distractor item: " + str(epc) +" found on table")
-                
+                distactor_table_set.add(item_dictionary.get(epc))
                 #Probably want to break here or something to get the process started again?
                 #Return or break?
                 return
@@ -765,6 +768,7 @@ while True:
 
                 #Maybe move this to be inside the handleCIfunctions when initial cabinet is still true?
                 server_socket.sendto(b'Read', client_selected)
+            last_announcement_time = time.time()
         except:
             window["-EventLog-"].print(f"Failed to start reading!\n")
             continue
@@ -812,14 +816,25 @@ while True:
         #Read from the clients
         try:
 
-            last_announcement_time = time.time()
+            
             #every 10 seconds (could change to number of reads)
-            if time.time() - last_announcement_time >= 10:
+            if time.time() - last_announcement_time >= 10 and server_read_status:
+                print("doing check for speaking")
+                print("length recipe map:")
+                print(len(set(list(recipe_map))))
+                print("length recipe_table_set:")
+                print(len(recipe_table_set))
                 if(len(recipe_table_set) == len(set(list(recipe_map))) and len(distactor_table_set) == 0): ##ten or number of items in recipe
                     Print_Buffer.__post_message_async__("All required items found with no distractors")
                 
                 # Announce the number of recipe items on table and distractors on table
                 else:
+                    print("conditions not met")
+                    print("recipe_table: ")
+                    print(recipe_table_set)
+
+                    print("distractor_table: ")
+                    print(distractor_table_set)
                     Print_Buffer.__post_message_async__("You have " + str(len(recipe_table_set)) + "required items and " +  str(len(distactor_table_set)) +  " distractors on the table")
                     remove_items = "Remove "
                     for item in distactor_table_set:
