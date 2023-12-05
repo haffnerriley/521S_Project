@@ -225,6 +225,12 @@ def addItemToRecipe(item):
         for key, value in item_dictionary.items():
             if default_item == value:
                 recipe_map.append(key)
+                #assume items start in cabinet, add the string name of them to the recipe
+                recipe_cabinet_set.add(value) 
+
+            #else the item isnt in the recipe so add to distractors 
+            else:
+                #
         window["recipe-items"].update(value=str(default_item), values=items_in_recipe)
 
 #Function that will remove the selected item in the Items in Recipe dropdown from the Recipe being monitored 
@@ -501,7 +507,9 @@ def compareRfidCi():
 
             elif (table_epc_ci < 0.33 or table_read_time > 2):
                 #Continue as usual. Item maybe moved?
-                distactor_table_set.remove(item_dictionary.get(epc))
+                if item_dictionary.get(epc) in distactor_table_set:
+                    distactor_table_set.remove(item_dictionary.get(epc))
+                    
                 continue
                 
 
