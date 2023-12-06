@@ -172,9 +172,14 @@ def testSpeech(cause):
     global recipe_table_set
     global distactor_table_set
 
-    messages = ["You have " + str(len(recipe_table_set)) + "required items and " +  str(len(distactor_table_set)) +  " distractors on the table",
-        "All required items found with no distractors"
-                
+    #build string for removal
+    remove_items = "Remove "
+    for item in distactor_table_set:
+        remove_items += (" " + item) 
+
+
+    messages = ["You have " + str(len(recipe_table_set)) + "required items and " +  str(len(distactor_table_set)) +  " distractors on the table, " + remove_items,
+        "All required items found with no distractors",
     ]
 
     while 1 == 1:
