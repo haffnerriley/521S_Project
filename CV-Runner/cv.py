@@ -191,7 +191,7 @@ if pid > 0 :
 else:
 
     HOST=''
-    PORT=8485
+    PORT=54321
 
     s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
     print('Socket created')
@@ -231,16 +231,16 @@ else:
                 frame=pickle.loads(frame_data, fix_imports=True, encoding="bytes")
                 image = cv2.imdecode(frame, cv2.IMREAD_COLOR)
 
-            #show the image for now
-            cv2.imshow("frame", image)
-            
-            if cv2.waitKey(1) & 0xFF == ord('q'): 
-                os.kill(os.getppid(), signal.SIGINT)
-                break
+                #show the image for now
+                cv2.imshow("frame", image)
+                
+                if cv2.waitKey(1) & 0xFF == ord('q'): 
+                    os.kill(os.getppid(), signal.SIGINT)
+                    break
 
-            #load frame segment
-            shm_frame = np.ndarray(current_frame.shape, dtype=current_frame.dtype, buffer=shm_cam.buf)
-            shm_frame[:] = image[:]
+                #load frame segment
+                shm_frame = np.ndarray(current_frame.shape, dtype=current_frame.dtype, buffer=shm_cam.buf)
+                shm_frame[:] = image[:]
 
     except Exception as e:
         print("Camera buffer memory segment closed... closing self....")
