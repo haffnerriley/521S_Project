@@ -6,6 +6,10 @@ import time
 import pickle
 import zlib
 
+#172.27.17.35
+#
+#
+
 cam = cv2.VideoCapture(0)
 
 cam.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)

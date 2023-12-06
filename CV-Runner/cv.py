@@ -223,7 +223,7 @@ else:
                 msg_size = struct.unpack(">L", packed_msg_size)[0]
                 while len(data) < msg_size:
                     data += conn.recv(4096)
-                    
+
                 frame_data = data[:msg_size]
                 data = data[msg_size:]
 
@@ -231,7 +231,7 @@ else:
                 image = cv2.imdecode(frame, cv2.IMREAD_COLOR)
 
                 #show the image for now
-                cv2.imshow("frame", image)
+                #cv2.imshow("frame", image)
                 
                 if cv2.waitKey(1) & 0xFF == ord('q'): 
                     os.kill(os.getppid(), signal.SIGINT)

@@ -66,7 +66,7 @@ venv = input("Are you using a venv? (Y/N): ")
 if venv == "Y":
     pythonVenvPath = input("please enter the venv path (absolute): ")
 
-option = input("Do you want to launch the (C)ooking processes or the object (E)ntry processes or (Q)uit (C/E/Q): ")
+option = "C"
 
 #try to launch all core processes
 try:

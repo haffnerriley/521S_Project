@@ -13,6 +13,7 @@ import numpy as np
 from multiprocessing import shared_memory
 from shared_memory_dict import SharedMemoryDict
 import json
+from PIL import Image, ImageTk
 
 #import the class
 sys.path.append('Voice-Buffer/')
@@ -30,9 +31,13 @@ cabinet_read = False
 #Variable that stores CI values from both readers 
 client_ci_list = {}
 
+#empty frame for shape
+current_frame = np.zeros((720, 1280, 3), np.uint8)
+
 #Shared memory region
 shm = None 
 shm_dict = SharedMemoryDict(name='cvConfidenceDict', size=1024)
+shm_cam = shared_memory.SharedMemory(name="shcamseg", create=False, size=current_frame.nbytes)
 
 #Tracks if shared memory region is open or not 
 region_bool = False
@@ -125,7 +130,7 @@ layout = [
     [sg.Text("EPC(s) to Update:"), sg.Combo(epcs_to_update, default_value=epc_to_update, key="epc",size=(25,1), enable_events=True), sg.Text("Items in Kitchen:"), sg.Combo(item_dictionary, default_value=epc_in_kitchen, key="epc-inventory",size=(25,1), enable_events=True)],
     [sg.Text("New Item Name:"), sg.InputText(key="item-name", size=(20,1)), sg.Text("Items in Recipe:"), sg.Combo(items_in_recipe, default_value=default_item, key="recipe-items", size=(25,1))],
     [sg.Button("Connect CV", key="cv-btn"), sg.Button("Set Power"), sg.Button("Find Item"), sg.Button("Update Item"), sg.Button("Start Server", key="server-btn"), sg.Button("Start Reading", key="server-read"),sg.Button("Add Item", key="add-item"), sg.Button("Remove Item", key="remove-item")],
-    [sg.Multiline("", size=(50, 10), key="-EventLog-", disabled=True)]
+    [sg.Multiline("", size=(50, 10), key="-EventLog-", disabled=True), sg.Image(key="image")]
 ]
 
 # Create the window
@@ -549,6 +554,16 @@ def readJSONFile(fileName):
     f = open(fileName)
     return json.load(f)
 
+def draw_img():
+    #grab image from shared mem and convert
+    current_frame_grabbed = np.ndarray(current_frame.shape, dtype=current_frame.dtype, buffer=shm_cam.buf)
+    image = Image.fromarray(current_frame_grabbed)
+
+    #override image in sg
+    image.thumbnail((400, 400))
+    photo_img = ImageTk.PhotoImage(image)
+    window["image"].update(data=photo_img)
+
 def jump_to_entry():
     messages = [
         "Entring object entry mode. Please place tracking stickers on the desired item and place the item in front of the sensor.",
@@ -698,12 +713,17 @@ while True:
     
     #Can change the timeout if we want to have a faster UI
     event, values = window.read(timeout=250)
+
+    #update image
+    draw_img()
+
     #print(np.ndarray((100,), dtype=np.float64, buffer=shm.buf))
     #Close the server socket if exit button pressed and server socket still open
     if event == sg.WINDOW_CLOSED:
         if server_status:
             server_socket.close()
         break
+
     #Handles setting the power of connected clients
     elif event == "Set Power":
         
