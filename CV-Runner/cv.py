@@ -12,6 +12,13 @@ import copy
 import time
 import signal
 from shared_memory_dict import SharedMemoryDict
+import socket
+import sys
+import cv2
+import pickle
+import numpy as np
+import struct ## new
+import zlib
 
 #set os env for objective C
 os.environ['OBJC_DISABLE_INITIALIZE_FORK_SAFETY'] = "1"
@@ -183,21 +190,46 @@ if pid > 0 :
 
 else:
 
-    frame_counter = 0
+    HOST=''
+    PORT=8485
 
-    # Opening image
-    video_capture_device_index = 0
-    webcam = cv2.VideoCapture(video_capture_device_index)
+    s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
+    print('Socket created')
 
-    #change camera resolution
-    webcam.set(cv2.CAP_PROP_FRAME_WIDTH, 1280)
-    webcam.set(cv2.CAP_PROP_FRAME_HEIGHT, 720)
+    s.bind((HOST,PORT))
+    print('Socket bind complete')
+    s.listen(10)
+    print('Socket now listening')
+
+    conn,addr=s.accept()
+
+    data = b""
+    payload_size = struct.calcsize(">L")
+    print("payload_size: {}".format(payload_size))
 
     try:
+
+        image = None
         while shared_memory.SharedMemory(name="shmemseg", create=False, size=items.nbytes):
 
-            #read from webcam
-            ret, image = webcam.read()
+            #read from server camera
+            while True:
+                while len(data) < payload_size:
+                    print("Recv: {}".format(len(data)))
+                    data += conn.recv(4096)
+
+                print("Done Recv: {}".format(len(data)))
+                packed_msg_size = data[:payload_size]
+                data = data[payload_size:]
+                msg_size = struct.unpack(">L", packed_msg_size)[0]
+                print("msg_size: {}".format(msg_size))
+                while len(data) < msg_size:
+                    data += conn.recv(4096)
+                frame_data = data[:msg_size]
+                data = data[msg_size:]
+
+                frame=pickle.loads(frame_data, fix_imports=True, encoding="bytes")
+                image = cv2.imdecode(frame, cv2.IMREAD_COLOR)
 
             #show the image for now
             cv2.imshow("frame", image)
@@ -205,17 +237,11 @@ else:
             if cv2.waitKey(1) & 0xFF == ord('q'): 
                 os.kill(os.getppid(), signal.SIGINT)
                 break
-            
-            #store frame in shared memory
-            if frame_counter == 10:
-                frame_counter = 0
 
-                #load frame segment
-                shm_frame = np.ndarray(current_frame.shape, dtype=current_frame.dtype, buffer=shm_cam.buf)
-                shm_frame[:] = image[:]
-            
-            frame_counter += 1
-    
+            #load frame segment
+            shm_frame = np.ndarray(current_frame.shape, dtype=current_frame.dtype, buffer=shm_cam.buf)
+            shm_frame[:] = image[:]
+
     except Exception as e:
         print("Camera buffer memory segment closed... closing self....")
         shm_cam.close()
