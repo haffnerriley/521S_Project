@@ -421,6 +421,15 @@ def compareRfidCi():
         #Should already be in the table tag list bc we send all recipe epcs when server starts reading 
         #print("EPC value " + str(epc))
         table_read_vals = table_tags[epc]
+
+        #FIXME: I am 90% sure the "should" above is not right... I don't think we ever ensure the recipe items have an analog in the reader lists
+        #to patch this, I am adding a bypass and value fill since we will remove it anyway
+        if not epc in cabinet_tags:
+            cabinet_analog = table_read_vals
+            cabinet_analog[0] = 0.0
+            cabinet_analog[1] = 100
+            cabinet_tags.update(cabinet_analog)
+        
         cabinet_read_vals = cabinet_tags[epc]
 
         #Getting the two CI values and last read times to compare 
