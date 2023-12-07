@@ -961,7 +961,7 @@ while True:
 
                  # Reset the timer
                 last_announcement_time = time.time()
-                testSpeech(len(recipe_table_set) == len(set(list(recipe_map))) and len(distactor_table_set) == 0)
+                testSpeech(len(recipe_table_set) == len(set(items_in_recipe)) and len(distactor_table_set) == 0) #just check the set that has names in it
                 
 
                 print(",")
