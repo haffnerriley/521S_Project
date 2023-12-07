@@ -13,6 +13,7 @@ import numpy as np
 from multiprocessing import shared_memory
 from shared_memory_dict import SharedMemoryDict
 import json
+import copy
 from PIL import Image, ImageTk
 
 #import the class
@@ -434,11 +435,14 @@ def compareRfidCi():
     for epc in recipe_set:
 
         #FIXME: assume it is possible to have an epc not in either
-        if not epc in table_tags and not epc in cabinet_tags:
+        if not epc in table_tags.keys() and not epc in cabinet_tags.keys():
             continue
 
         #FIXME: assume possible to get item in the cabinet but not table, so do the inverse of what we do below
-        if not epc in table_tags:
+        if not epc in table_tags.keys():
+            
+            print(epc, " missing from table, copying from cabinet")
+
             table_analog = copy.deepcopy(cabinet_tags[epc])
             table_analog[0] = 0.0
             table_analog[1] = 100
@@ -450,7 +454,10 @@ def compareRfidCi():
 
         #FIXME: I am 90% sure the "should" above is not right... I don't think we ever ensure the recipe items have an analog in the reader lists
         #to patch this, I am adding a bypass and value fill since we will remove it anyway
-        if not epc in cabinet_tags:
+        if not epc in cabinet_tags.keys():
+
+            print(epc, " missing from cabinet, copying from table")
+
             cabinet_analog = copy.deepcopy(table_read_vals)
             cabinet_analog[0] = 0.0
             cabinet_analog[1] = 100
@@ -505,8 +512,6 @@ def compareRfidCi():
             #Tell the user that the item is in their cabinet 
             #Print_Buffer.__post_message_async__("Item " + str(item_dictionary.get(epc))+ " found in cabinet")
             print("Recipe item: " + item + " found in cabinet!")
-            #Return or break
-            break
         else:
             print("CV handling")
             
@@ -547,10 +552,16 @@ def compareRfidCi():
             #         break
 
             #Have the speaker tell the user that the item is missing 
-            if missing:
-                print("missing item?")
-                return
+            #if missing:
+            #    print("missing item?")
+            #    return
             #return or break?
+
+    for epc in recipe_set:
+        if epc in table_tags.keys():
+            del table_tags[epc]
+        if epc in cabinet_tags.keys():
+            del cabinet_tags[epc]
     
     #Go through the leftover's (distractors) and figure out what items remain and where 
     if (len(table_tags) != 0):
