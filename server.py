@@ -428,7 +428,7 @@ def compareRfidCi():
             cabinet_analog = table_read_vals
             cabinet_analog[0] = 0.0
             cabinet_analog[1] = 100
-            cabinet_tags.update(cabinet_analog)
+            cabinet_tags[epc] = cabinet_analog
         
         cabinet_read_vals = cabinet_tags[epc]
 
