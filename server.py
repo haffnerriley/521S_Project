@@ -251,6 +251,17 @@ def addItemToRecipe(item):
         #FIXME: this loop will add any item tag epcs that match the value of the key
         #AKA: we have been adding each item n*n times where n is the number of tags
         #could cause weirdness, should fix
+
+        #FIXME: OH SHIT IF WE ADD THE ITEMS N TIMES AND WE ADD EACH ITEM IN THE GUI
+        #WHICH CAUSES AN N*N ADDED SEQUENCE, THEN WE END UP ADDING 16*24 BYTES FOR
+        #EACH TAG SET (AKA OATMEAL BOX) WHICH IS 384 BYTES OF DATA FOR ONE ITEM
+        #WITH 4 TAGS. WE THEN ADD MORE ITEMS DOING THE SAME THING (3 TAGS, 4 TAGS, ETC)
+        #AND WE THEN ONLY READ FROM THE BUFFER ONCE (FIND THE SOCKET.recv(1024) IN THE CLIENT
+        #WHICH MEANS (I think....) WE CAN OVERRIDE THAT 1024 BYTE BUFFER WHEN WE HAVE A TON OF
+        #ITEMS IN THE JSON FILE, WHICH IS WHY THE CABINET SOMETIMES DOESN'T HAVE THE ITEMS IN IT
+        #
+        #HOW TO TEST FOR THIS: ADD THE KITCHEN.JSON BACK AND ADD EACH ITEM ((((ONCE)))) NO MATTER
+        #HOW MANY TAGS. THEN SEE IF WE HAVE THE DICTIONARY BREAK WHEN A READ IS PERFORMED.
         for key, value in item_dictionary.items():
             if default_item == value:
                 recipe_map.append(key) 
