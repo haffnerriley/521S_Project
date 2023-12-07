@@ -179,8 +179,10 @@ def testSpeech(cause):
     global distactor_table_set
 
     #build string for removal
-    remove_items = "Remove "
+    remove_items = ""
     for item in distactor_table_set:
+        if remove_items == "":
+            remove_items = "Remove "
         remove_items += (" " + item) 
 
 
