@@ -473,6 +473,11 @@ def compareRfidCi():
             #If the cabinet epc ci value is at least 25% confident and read time within last 4s and table reader doesn't detect 
             #cabinet_set.add(recipe_map[epc])
             #table_tags.remove(epc)
+
+            #FIXME: We have to remove these if the tags are assumed to be in both the table list and the cabinet list
+            del table_tags[epc]
+            del cabinet_tags[epc]
+            
             #cabinet_tags.remove(epc)
             item = str(item_dictionary.get(epc))
 
@@ -506,8 +511,11 @@ def compareRfidCi():
                 del table_tags[epc]
                 del cabinet_tags[epc]
                 missing = False
-                
-           
+
+            #FIXME: If we make it down here, the table doesn't see it, the cabinet doesn't see it, and the CV doesn't see it. That means that it can't be a distractor
+            #no idea where it is, but we also shouldn't give a shit about that right now
+            del table_tags[epc]
+            del cabinet_tags[epc]
            
            
             #Loop through the items that the CV sees 
