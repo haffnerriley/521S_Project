@@ -417,6 +417,17 @@ def compareRfidCi():
 
 
     for epc in recipe_set:
+
+        #FIXME: assume it is possible to have an epc not in either
+        if not epc in table_tags and not epc in cabinet_tags:
+            continue
+
+        #FIXME: assume possible to get item in the cabinet but not table, so do the inverse of what we do below
+        if not epc in table_tags:
+            table_analog = copy.deepcopy(cabinet_tags[epc])
+            table_analog[0] = 0.0
+            table_analog[1] = 100
+            table_tags[epc] = table_analog
         
         #Should already be in the table tag list bc we send all recipe epcs when server starts reading 
         #print("EPC value " + str(epc))
