@@ -247,9 +247,13 @@ def addItemToRecipe(item):
     else:
         default_item = item 
         items_in_recipe.append(default_item)
+
+        #FIXME: this loop will add any item tag epcs that match the value of the key
+        #AKA: we have been adding each item n*n times where n is the number of tags
+        #could cause weirdness, should fix
         for key, value in item_dictionary.items():
             if default_item == value:
-                recipe_map.append(key)
+                recipe_map.append(key) 
                 #assume items start in cabinet, add the string name of them to the recipe
                 recipe_cabinet_set.add(value) 
 
