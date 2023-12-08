@@ -1,3 +1,12 @@
+##############################################################
+#
+# Helper program that grabs all desired images from the 
+# open images database and combines them for use with
+# training methods later
+#
+##############################################################
+
+
 import fiftyone as fo
 import fiftyone.zoo as foz
 import random
@@ -13,7 +22,6 @@ dataset_name = "Identification-" + str(random.randint(1,32000))
 data_types = ["train", "validation", "test"]
 
 #I'm definitely going to forget how to use this at some point
-#["Spoon", "Bowl", "Salt and pepper shakers", "Frying pan", "Measuring cup", "Box", "Tin can"]
 if(sys.argv[1] == "-h" or sys.argv[1] == "--help"):
     print("Usage: FO-open-images-scraper.py <Export path> <dataset-version (6/7)> <sample limit> <class names (space separated)>")
     sys.exit(0)

@@ -190,12 +190,18 @@ if pid > 0 :
 
 else:
 
+    #server to listen for images being send from a client reading from a camera
+    #code modified from 
+    #https://gist.github.com/kittinan/e7ecefddda5616eab2765fdb2affed1b
+    #which provided the framework code to capture an image on a client and send to a server
     HOST=''
     PORT=54321
 
+    #create socket
     s=socket.socket(socket.AF_INET,socket.SOCK_STREAM)
     print('Socket created')
 
+    #open server and bind to socket
     s.bind((HOST,PORT))
     print('Socket bind complete')
     s.listen(10)
@@ -216,17 +222,18 @@ else:
             while True:
                 while len(data) < payload_size:
                     data += conn.recv(4096)
-
+                
                 packed_msg_size = data[:payload_size]
                 data = data[payload_size:]
                 
                 msg_size = struct.unpack(">L", packed_msg_size)[0]
                 while len(data) < msg_size:
                     data += conn.recv(4096)
-
+                
                 frame_data = data[:msg_size]
                 data = data[msg_size:]
 
+                #pickle data before sending
                 frame=pickle.loads(frame_data, fix_imports=True, encoding="bytes")
                 image = cv2.imdecode(frame, cv2.IMREAD_COLOR)
 

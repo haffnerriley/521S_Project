@@ -1,3 +1,13 @@
+#####################################################
+#
+# This file is just an aggregated mirror of the
+# functions in the server that handle the entry 
+# process. The purpose of this file is just to be
+# launched when debugging the entry process without
+# needing to get the server involved
+#
+#####################################################
+
 import os, os.path
 from multiprocessing import shared_memory
 import numpy as np
