@@ -1,17 +1,24 @@
+#####################################################################
+#
+# This file is only used to test the model itself and visualize the 
+# the boxes so that I could check how well the model was trained
+#
+######################################################################
 from ultralytics import YOLO
 import cv2
-from ultralytics.utils.plotting import Annotator  # ultralytics.yolo.utils.plotting is deprecated
+from ultralytics.utils.plotting import Annotator
 
+#load model
 model = YOLO('../Model/model.pt')
 cap = cv2.VideoCapture(0)
 cap.set(3, 1280)
 cap.set(4, 720)
 
+#only useful classes
 classList = ["Spoon", "Bowl", "Measuring cup", "Spatula", "Salt tin", "Pan", "Salt and pepper shakers", "Oatmeal box"]
 
 while True:
     _, img = cap.read()
-    
     results = model.predict(img)
 
     for r in results:
@@ -40,10 +47,6 @@ while True:
                     classname = "Bowl"
                 case "Coffee cup":
                     classname = "Measuring cup"
-
-            #if not a class we want, skip class
-            if 1==2:#classname not in classList:
-                continue
 
             annotator.box_label(b, classname)
           
