@@ -97,10 +97,6 @@ try:
         #launch Voice process
         launch_process('python'+pythonEnv, "Voice-Buffer/main.py", 1)
 
-        #launch Entry Process
-        #time.sleep(5)
-        #launch_process('python'+pythonEnv, "Entry/Entry_Process.py",2)
-
         #launch server process
         time.sleep(5)
         launch_process('python'+pythonEnv, "server.py",0)
