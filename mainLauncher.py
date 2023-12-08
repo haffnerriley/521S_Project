@@ -21,6 +21,8 @@ sys.path.insert(0, os.getcwd() + "/CV-Runner")
 sys.path.insert(0, os.getcwd() + "/helpers")
 from voiceClass import *
 
+#ensures that the main process checks the shared buffers created
+#by the processes to see when a process has died
 def check_segments():
 
     while True:
@@ -51,6 +53,9 @@ def check_segments():
                     os.kill(pid, signal.SIGINT)
                 exit(-1)
 
+#simple entry point to launch each process
+#and assign it to a position in the pid array
+#also can run pythonEnv
 def launch_process(pythonEnv, Path, i):
 
     #if we want to use a venv
@@ -61,11 +66,16 @@ def launch_process(pythonEnv, Path, i):
         hold = subprocess.Popen([pythonEnv, Path])
         pids[i] = hold.pid
 
+#grab any pyenv if that is where we should launch
 venv = input("Are you using a venv? (Y/N): ")
 
+#locate the bin
 if venv == "Y":
     pythonVenvPath = input("please enter the venv path (absolute): ")
 
+#switch value to "E" if you want to
+#test the logic of the entry program
+#separately
 option = "C"
 
 #try to launch all core processes
@@ -106,29 +116,6 @@ except:
 time.sleep(5)
 mem_checker = threading.Thread(target=check_segments, args=())
 mem_checker.start()
-
-if option == "P":
-    #start the messages
-    Print_Buffer.__post_message__("Welcome to whatever we end up calling this abomination. Type start and hit enter when you are ready to begin")
-
-    input()
-
-    Print_Buffer.__post_message__("Please select which recipe you are going to be making. Type the selection in the terminal and press Enter")
-
-    selection = input()
-
-    Print_Buffer.__post_message__("You have selected oatmeal. To make oatmeal, you will need: one bowl, one spoon, one pan, one box of oatmeal, one salt container and one measuring cup")
-    Print_Buffer.__post_message__("When you have placed all the items on the table, type ready into the terminal and press enter.")
-
-    input()
-    
-    #stub
-    #get items 
-    if (1 != 1):
-        Print_Buffer.__post_message__("You do not have all the items needed or you have items that should be removed. You still need a stub")
-
-    else:
-        Print_Buffer.__post_message__("You have all the required items! You are now ready to make oatmeal.")
 
 #this will await the memory checker no matter what
 mem_checker.join()
