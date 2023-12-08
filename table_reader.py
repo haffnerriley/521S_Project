@@ -1,13 +1,9 @@
 #!/usr/bin/env python3
 from __future__ import print_function
 import PySimpleGUI as sg
-
-
-
 import time
 from datetime import datetime
 import mercury
-
 
 reader = "undefined"
 reader_status = "disconnected"
@@ -17,6 +13,12 @@ item_dictionary = {}
 epcs_to_update = []
 prev_read = []
 reading_status = False
+
+#connect to the shared memory segment
+shm = shared_memory.SharedMemory(name="shmemseg", create=False, size=np.zeros(3, dtype=np.float64).nbytes)
+
+#example for how to access memory
+c = np.ndarray((3,), dtype=np.float64, buffer=existing_shm.buf)
 
 # Define the GUI layout
 layout = [
@@ -31,15 +33,17 @@ layout = [
 # Create the window
 window = sg.Window("Smart Kitchen Application", layout, finalize=True)
 
-
 # Event loop
 while True:
-    event, values = window.read(timeout=500)
-    
 
-    
+    #timeout 
+    event, values = window.read(timeout=500)
+
+    #handlers
     if event == sg.WINDOW_CLOSED:
         break
+
+    #handle connection command
     elif event == "Connect":
         #Connect to reader using usb 
         reader_port = values["connect-reader"]
@@ -59,21 +63,29 @@ while True:
         reader.set_region("NA2")
         reader.set_read_plan([1], "GEN2", read_power=reader_power)
         reader_status = "connected"
+
+    #handle set power command
     elif event == "Set Power":
         #Grabbing power value from input box
         #Could add some logic to make sure input values are correct but will save for later if have time...
         if(reader_status == "disconnected"):
             window["-EventLog-"].print(f"Please connect to reader first!\n")
             continue
+            
         reader_power = int(values["reader-power"])
+
+        #set reader power
         try:
             #Set the reader power, protocol, and number of antennas
             reader.set_read_plan([1], "GEN2", read_power=reader_power)
+            
         except:
             window["-EventLog-"].print(f"Failed to set reader power!\n")
             continue
         
         window["-EventLog-"].print(f"Reader power set to {reader_power}\n")
+
+    #handle find command
     elif event == "Find Item":
         if(reader_status == "disconnected"):
             window["-EventLog-"].print(f"Please connect to reader first!\n")
@@ -95,6 +107,8 @@ while True:
         except:
             window["-EventLog-"].print(f"Failed to start reading!\n")
             continue
+
+    #handle update command
     elif event == "Update Item":
         if(reader_status == "disconnected"):
             window["-EventLog-"].print(f"Please connect to reader first!\n")
@@ -107,6 +121,8 @@ while True:
             continue
         item_dictionary.update({values["epc"].decode("utf-8") : values["item-name"]})
         window["-EventLog-"].print(f"Item Updated! Items in inventory: {item_dictionary}\n")
+
+    #handle read command
     elif event == "read-btn" and reading_status == False:
         window[event].update("Stop Reading")
         reading_status = True
@@ -114,8 +130,7 @@ while True:
         window[event].update("Start Reading")
         reading_status = False
 
-    
-
+    #if we are currently reading
     if reading_status:
         #make a read
         current_tags = list(map(lambda t: t.epc, reader.read()))
@@ -125,7 +140,7 @@ while True:
         #remove duplicates
         all_tags = list(set(all_tags))
 
-        
+        #go through each tag and see if it moved
         for tag in all_tags:
             if tag in prev_read and tag in current_tags:
                 window["-EventLog-"].print(str(tag) + " stayed in field\n")
@@ -136,14 +151,12 @@ while True:
             elif tag in current_tags and tag not in prev_read:
                 window["-EventLog-"].print(str(tag) + " has entered field\n")
                 #send to server here
-            
-                
-        
+
+        #update previous values
         prev_read = current_tags[:]
-
-        #time.sleep(1)
-
-    
 
 # Close the window
 window.close()
+
+#close segment
+shm.close()

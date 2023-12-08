@@ -1,3 +1,11 @@
+##############################################################
+#
+# Helper program that grabs all desired images from the 
+# coco database and combines them for use with
+# training methods later
+#
+##############################################################
+
 import fiftyone as fo
 import fiftyone.zoo as foz
 import sys 
