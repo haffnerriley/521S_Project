@@ -1,11 +1,19 @@
 ### Install Guide
 
+Follow these steps to install all necessary packages:
 
-Please follow these steps to install all required packages. 
+1. **Clone the project:**
+    ```bash
+    git clone https://github.com/haffnerriley/521S_Project.git
+    ```
 
-1. Clone the project 
+2. **IMPORTANT: Install the Mercury Python library first:**  
+   Access the installation instructions [here](https://github.com/gotthardp/python-mercuryapi#readme).
 
-2. IMPORTANT: Install the mercury python library first using the instructions linked here: https://github.com/gotthardp/python-mercuryapi#readme
+3. **Install remaining packages using the `requirements.txt` file:**  
+    Execute the following pip command:
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-3. Install all other packages using the requirements.txt file and issuing the following pip command: pip install -r requirements.txt
-
+By completing these steps, you'll have all the required packages installed for the project.
